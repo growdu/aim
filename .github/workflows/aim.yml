@@ -50,6 +50,9 @@ jobs:
 
       - name: 装系统依赖
         # python3-cairo / python3-numpy / python3-pil：品牌片渲染与字体解析要用。
+        # python3-scipy：铭牌识别（`scipy.ndimage`）与读音验收（`scipy.linalg`）
+        #   要用——**跟着「人」搬过来的那两条脚本**（2026-11-25 漏了它，
+        #   CI 里 22 条用例红在 `No module named 'scipy'`）。
         # python3-pip：fontTools 只能走 pip（见下一步），pip 得先在。
         # fontconfig：cairo 在 Linux 上靠它找字体。
         # fonts-noto-cjk 是**兜底**——内置子集装不上时的退路；
@@ -58,7 +61,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             fontconfig fonts-noto-cjk \
-            python3-cairo python3-numpy python3-pil python3-pytest python3-pip
+            python3-cairo python3-numpy python3-pil python3-pytest \
+            python3-scipy python3-pip
           fc-cache -f
 
       - name: 确认 Python 依赖可用
@@ -66,7 +70,7 @@ jobs:
           # 系统包装的版本与发行版一起走，最稳；只有在装不上时才退回 pip。
           # fontTools 只用来读内置字体的 cmap（缺字守卫要用）。纯 Python，
           # 不碰 numpy，不会和系统包的版本打架。
-          python3 -c "import cairo, numpy, PIL, pytest" || \
+          python3 -c "import cairo, numpy, PIL, pytest, scipy" || \
             python3 -m pip install --break-system-packages -r requirements/dev.txt
           python3 -c "import fontTools" || \
             python3 -m pip install --break-system-packages "fonttools>=4.0"

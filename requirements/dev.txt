@@ -4,7 +4,7 @@
 # 自己编译容易踩坑：
 #
 #   sudo apt-get install -y python3-cairo python3-numpy python3-pil \
-#                          python3-pytest
+#                          python3-pytest python3-scipy
 #
 # 系统包装不上时再走 pip：
 #
@@ -23,3 +23,14 @@ pytest>=7.0
 # fontTools 只用来读内置字体的 cmap（缺字守卫要用）。纯 Python，
 # 不碰 numpy，不会和系统包的版本打架。
 fonttools>=4.0
+# scipy：**跟着「人」一起搬过来的那两条**要用——
+# `scripts/character/stamp_badge.py` 用 `scipy.ndimage`（找铭牌那块白矩形、
+# 连通域），`scripts/voice/measure_voice.py` 用 `scipy.linalg`
+# （读音验收的 Toeplitz 求解）。
+#
+# ⚠️ **2026-11-25 踩过**：搬脚本的时候依赖声明没跟着搬——
+# aiv 那边明明白白写着「scipy 不在这里，它跟着人走了」，
+# 而本仓的 `requirements/dev.txt` 里**没有 scipy**，
+# 于是 CI 里 22 条用例红在 `ModuleNotFoundError: No module named 'scipy'`。
+# 搬东西要搬依赖声明，不然那边少一句、这边少一句，两边都不对。
+scipy>=1.7
