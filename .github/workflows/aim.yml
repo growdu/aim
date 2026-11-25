@@ -33,12 +33,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      # ⚠️ **这里不装 setup-python**——2026-11-25 踩过的坑：
+      # `actions/setup-python` 会把 `python3` 指向 **toolcache 里那个 Python**，
+      # 而 apt 装的 `python3-cairo` 进的是**系统 Python**（`/usr/bin/python3`）。
+      # 两个 Python 不是一个：系统包装的 cairo **toolcache 那个 import 不到**，
+      # 于是「确认 Python 依赖可用」退到 pip 那条兜底——pip 去**源码编译 pycairo**，
+      # 而 runner 上没有 cairo 的开发头文件 → 编译失败 → 整条工作流红。
+      #
+      # 修法是**别换 Python**：用 runner 自带的系统 Python，
+      # apt 的包与它**天然对上**（aiv 那条流水线一直这么跑）。
+      # runner 上的系统 Python 是 3.12（ubuntu-24.04），够用。
+      #
+      # 真要钉版本，就把 cairo 的开发头文件一起装上
+      # （`libcairo2-dev` + `pkg-config`），让 pip 那条兜底能编过——
+      # 但那是**慢**的路子：每次 CI 现场编一遍 pycairo。
 
       - name: 装系统依赖
         # python3-cairo / python3-numpy / python3-pil：品牌片渲染与字体解析要用。
+        # python3-pip：fontTools 只能走 pip（见下一步），pip 得先在。
         # fontconfig：cairo 在 Linux 上靠它找字体。
         # fonts-noto-cjk 是**兜底**——内置子集装不上时的退路；
         # 主力是仓库里那份「AIV Sans CJK SC」（下一步装）。
@@ -46,7 +58,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             fontconfig fonts-noto-cjk \
-            python3-cairo python3-numpy python3-pil python3-pytest
+            python3-cairo python3-numpy python3-pil python3-pytest python3-pip
           fc-cache -f
 
       - name: 确认 Python 依赖可用

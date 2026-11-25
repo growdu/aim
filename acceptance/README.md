@@ -92,3 +92,10 @@ CI 里是同一条。**字体不在，缺字探针就没有判据**——
 
 **aim 不 checkout 别的仓**——它不依赖 aik，也不依赖 aiv。
 （aiv 那边要 checkout 本仓，那是**它**的缝，不是本仓的。）
+
+**CI 用 runner 自带的系统 Python**（ubuntu-24.04 上是 3.12），
+**不装 `actions/setup-python`**——那会把 `python3` 换成 toolcache 里的另一个
+Python，而 apt 的 `python3-cairo` 进的是系统 Python，两个不是一个：
+`import cairo` 失败 → 退到 pip 源码编译 pycairo → runner 上没有 cairo 的
+开发头文件 → 编译失败 → 整条工作流红。
+（2026-11-25 实测踩过；工作流里那条注释写着同样的事。）
