@@ -56,3 +56,21 @@ def test_the_unverified_words_are_reported(pronunciation):
     """没被任何读音记录覆盖的「行」字词——必须先实测再入库。"""
     assert "行锁" not in pronunciation.unverified_hang_words("行锁")
     assert "行囊" in pronunciation.unverified_hang_words("行囊")
+
+
+def test_the_pronunciation_judgement_constants_are_consistent():
+    """判据本身的常量不能自相矛盾——阈值漂了就等于没判。
+
+    判据脚本（`scripts/voice/check_pronunciation.py`）是**这个人的尺子**，
+    所以它跟人走，守卫也在这边。
+    """
+    from _scripts import load_script
+
+    module = load_script("voice/check_pronunciation.py",
+                         "aim_script_check_pronunciation")
+    assert module.GAMMA_RATIO_MIN >= 20, "摩擦比门槛太低，浊音段会被当成摩擦噪声"
+    assert module.GAMMA_CENTROID_MIN >= 3500, \
+        "谱心门槛低于 [ɕ] 的实测下沿（4419 Hz）"
+    assert module.ONSET_WINDOW <= 0.10, (
+        "词首窗口大于 100 ms 就会扫到后一个字（实测「锁」的 /s/ 在 +126 ms 以后）"
+    )

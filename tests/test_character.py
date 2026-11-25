@@ -55,6 +55,13 @@ def test_the_glasses_prompt_carries_the_spec():
     assert "透明" in prompt, "镜片透明是硬要求（镜片一反光，眼睛就废了）"
 
 
+def test_the_cleanup_prompt_targets_the_glasses_nameplate():
+    """擦镜框杂物的 prompt 得说清楚擦什么。"""
+    glasses = _add_glasses()
+    assert "白色小铭牌" in glasses.CLEANUP_PROMPT
+    assert "白色小铭牌" in glasses.CLEANUP_SHEET_PROMPT
+
+
 def test_the_character_output_lands_in_the_person_asset_dir():
     """脚本写出的目录 = 这个人的素材目录（`models/<slug>/assets/character/`）。"""
     glasses = _add_glasses()
