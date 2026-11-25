@@ -102,6 +102,8 @@ python3 -m pytest tests/ -q
 
 aiv 那边怎么读这份文件，看
 [`../aiv/plans/15-aiv-读model.md`](../aiv/plans/15-aiv-读model.md)。
+几个仓之间的关系（谁是谁的上下游、缝在哪儿）看
+[`../aid/REPOS.md`](../aid/REPOS.md)（**唯一的一份**）。
 
 给 AI 协作者的入口是 [`AGENTS.md`](AGENTS.md)。
 验收矩阵在 [`acceptance/README.md`](acceptance/README.md)。

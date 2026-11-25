@@ -5,7 +5,8 @@
 >
 > **给谁读**：AI 协作者。人读 [`README.md`](README.md)（本仓库总览）。
 > **与别的仓的关系**（谁是谁的上下游、缝在哪儿）读仓库外的
-> [`../aiv/REPOS.md`](../aiv/REPOS.md)。
+> [`../aid/REPOS.md`](../aid/REPOS.md)（**唯一的一份**；
+> `../aiv/REPOS.md` 是「视频线这一侧」的展开，冲突时以 `aid/` 那份为准）。
 
 ---
 
@@ -36,11 +37,15 @@ aiv（视频线）读它 → 渲染 → 成片
 |------|----------|--------|----------|
 | **模型契约** | `models/` | `model.json`（这个人的唯一契约）、`brand_windows.json` | `python3 -m pytest tests/test_model.py -q` |
 | **可复用件** | `aimkit/` | `model.py`（读模型）、`paths.py`（路径常量）、`fonts.py`（字体解析） | `python3 -m pytest tests/ -q` |
-| **形象** | `scripts/character/` | 生成主形象、戴眼镜、盖铭牌、抹铭牌、合成白底 | `python3 -m pytest tests/test_character.py -q` |
+| **形象** | `scripts/character/` | 生成主形象、戴眼镜、合成白底 | `python3 -m pytest tests/test_character.py -q` |
+| **形象素材** | `scripts/character/` | 眼镜图与主形象的位置对不对、是不是模型说的那份 | `python3 -m pytest tests/test_character_assets.py tests/test_glasses_assets.py -q` |
+| **铭牌** | `scripts/character/` | 盖铭牌（`stamp_badge.py`）、抹铭牌（`clear_badge.py`）——找铭牌那块白矩形靠 `scipy.ndimage` | `python3 -m pytest tests/test_stamp_badge.py tests/test_clear_badge.py -q` |
 | **品牌片** | `scripts/brand/` | 生成姿态与背景、重排底板文字、渲染片头片尾、配音 | `python3 -m pytest tests/test_brand.py -q` |
+| **品牌片脚本** | `scripts/brand/` | 脚本只引用模型里声明的素材 | `python3 -m pytest tests/test_brand_scripts.py -q` |
 | **音色** | `scripts/voice/` | 量测参照录音、查多音字读音 | `python3 -m pytest tests/test_voice.py -q` |
 | **线内规格** | `specs/` | 形象 / 音色 / 品牌片 / 人格四份规范 | ——（文档） |
-| **素材** | `assets/` | 内置字体子集 + 出处台账（**入库**） | `python3 -m pytest tests/test_brand.py -q` |
+| **素材** | `assets/` | 内置字体子集 + 出处台账（**入库**） | `python3 -m pytest tests/test_fonts.py -q` |
+| **素材入库** | `tests/` | 用户素材不入库、内置字体与授权台账要入库 | `python3 -m pytest tests/test_assets_are_tracked.py -q` |
 | **本仓守卫** | `tests/` | 模型形状、字体出处与缺字、眼镜规格、人格、品牌片 | `python3 -m pytest tests/ -q` |
 
 **跳过**（AI 不读不改）：`models/*/assets/`（这个人的素材，不入库）、
@@ -112,6 +117,13 @@ python3 -m pytest tests/ -q
 
 **全套只有一条**——本仓小，模块之间又共用同一份 `model.json`，
 拆开跑没有意义（不像 aiv 那样按模块拆）。
+
+> **跑之前：依赖要在**（Linux 上**优先用系统包**，见 `requirements/dev.txt`）：
+> `python3-cairo python3-numpy python3-pil python3-pytest python3-scipy`，
+> 外加 `fontTools`（只能 pip 装）。
+> **`scipy` 不是可选项**——铭牌识别（`scipy.ndimage`）与读音验收
+> （`scipy.linalg`）都要它。2026-11-25 搬脚本的时候依赖声明没跟着搬，
+> CI 里 22 条用例红在 `No module named 'scipy'`。
 
 ---
 
