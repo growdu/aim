@@ -12,16 +12,27 @@
 
 | # | 命令 | 跑的是什么 | Expected |
 | --- | --- | --- | --- |
-| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片 | **66 passed** |
+| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库 | **101 passed / 18 skipped** |
 | 2 | `python3 -m pytest tests/test_model.py -q` | 模型契约：形状校验、相对路径基准、`schema` 涨版 | 13 passed |
 | 3 | `python3 -m pytest tests/test_build_model.py -q` | 收拢确认结论：保留原值、不编身份、坏形状不写 | 9 passed |
 | 4 | `python3 -m pytest tests/test_fonts.py -q` | 字体解析：族名解析、缺字探针、hinting 关掉 | 7 passed |
-| 5 | `python3 -m pytest tests/test_voice.py -q` | 音色：替换表、多音字规则、参数取自模型 | 7 passed |
-| 6 | `python3 -m pytest tests/test_character.py -q` | 形象：眼镜规格 ↔ 规范 ↔ prompt、素材位置跟模型一致 | 9 passed |
+| 5 | `python3 -m pytest tests/test_voice.py -q` | 音色：替换表、多音字规则、参数取自模型 | 8 passed |
+| 6 | `python3 -m pytest tests/test_character.py -q` | 形象：眼镜规格 ↔ 规范 ↔ prompt、素材位置跟模型一致 | 10 passed |
 | 7 | `python3 -m pytest tests/test_persona.py -q` | 人格：一整段文字、关键词列表已退休、规范 ↔ 模型一致 | 7 passed |
 | 8 | `python3 -m pytest tests/test_brand.py -q` | 品牌片：字体出处与缺字守卫、文案取自模型 | 14 passed |
+| 9 | `python3 -m pytest tests/test_assets_are_tracked.py -q` | 素材入库：用户素材不入库、内置字体与授权台账要入库 | 11 passed |
+| 10 | `python3 -m pytest tests/test_brand_scripts.py -q` | 品牌片脚本：脚本只引用模型里声明的素材 | 7 passed |
+| 11 | `python3 -m pytest tests/test_character_assets.py -q` | 形象素材：立绘 / 头像在不在、是不是模型说的那份 | 2 passed / 5 skipped |
+| 12 | `python3 -m pytest tests/test_clear_badge.py -q` | 「无标牌」徽章：素材在不在、规格对不对 | 2 passed / 6 skipped |
+| 13 | `python3 -m pytest tests/test_glasses_assets.py -q` | 眼镜素材：眼镜图在不在、是不是模型说的那份 | 4 skipped |
+| 14 | `python3 -m pytest tests/test_stamp_badge.py -q` | 印章徽章：素材在不在、规格对不对 | 11 passed / 3 skipped |
 
 **每条命令都在仓根跑。**
+
+**那 18 条 skip 全是同一件事：素材不在本机。**
+立绘、头像、眼镜图、徽章这些**生成素材**要联网、要消耗额度（见 §四），
+所以 CI 里没有。跳过的只是「这个文件在不在」那几问——**被测的代码都跑了**。
+每条 skip 都带一句原因，不静默跳过。
 
 ### 跑之前：内置字体要在
 
@@ -41,8 +52,10 @@ CI 里是同一条。**字体不在，缺字探针就没有判据**——
 | --- | --- | --- | --- |
 | 模型契约 | aim `models/<slug>/model.json` → aiv `pyv/model.py` | aiv 读得出 `person` / `voice` / `brand` / `assets` | 读得出；读不了就是**硬错误** |
 | 素材位置 | aim `model.json` 的 `assets.mascot` → aiv 合成角色 | 路径相对 `model.json` 所在目录 | aiv 按 `model.json` 的目录解析即中 |
-| 字体子集 | aim `assets/fonts/*.otf` ↔ aiv `video/pipeline/assets/fonts/*.otf` | **sha256 相同** | 两边字节一致（aiv 侧有守卫） |
+| 字体子集 | aim `assets/fonts/*.otf` ↔ aiv `video/pipeline/assets/fonts/*.otf` | **sha256 相同** | 两边字节一致 |
 
+**三条守卫都在 aiv 那一侧**：`video/pipeline/tests/test_model_seam.py`
+（仓不在场时**带理由跳过**，不假装绿）。
 **跨仓零 import**——上面三条全是**比文件**，没有一条是 import 对方的模块。
 
 ---
