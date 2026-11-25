@@ -1,0 +1,31 @@
+# aim 仓里**入库的是事实，不入库的是产物与素材**。
+#
+# 素材（这个人的立绘、姿态表、头像、品牌片底板、样例视频）是**使用者的东西**：
+# 确认流程跑完落在本地，但不入库——入库的是「它在哪」（model.json 里的路径）。
+/models/*/assets/
+# 加眼镜流程的中间产物（`add_glasses.py` 的暂存目录）。
+/models/*/_staging/
+# 仓级的素材目录（当前空着，但守住——素材一旦落进去就不该入库）。
+/assets/character/
+/assets/brand/
+/assets/samples/
+
+# 字体子集是**入库的**（它跨机决定版式，必须在仓里）。
+# 但重新构建时的中间产物不入库。
+*.ttc
+
+# Python
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.pyc
+
+# OS / Editor
+.DS_Store
+.vscode
+.obsidian
+
+# Agent session scratch — local bookkeeping only.
+.remember/
+.session.txt

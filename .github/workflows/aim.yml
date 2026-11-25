@@ -1,0 +1,97 @@
+name: AIM model
+
+# aim（人物形象仓）的闸门：**模型契约、字体出处与缺字、形象规格、人格、品牌片**。
+#
+# **本仓不 checkout 别的仓**——它不依赖 aik（母稿树），也不依赖 aiv（下游）。
+# 缝是文件，而**这一侧不需要那个文件**：测试用的是仓里那份 model.json。
+#
+# 唯一的环境依赖是**内置字体**：缺字守卫要靠它判「这个字画不画得出来」。
+# 字体不在，那几条守卫就没有判据——所以「装上内置字体」是**必跑的一步**，
+# 不是可选的保险。
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aim-model-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 跑测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 装系统依赖
+        # python3-cairo / python3-numpy / python3-pil：品牌片渲染与字体解析要用。
+        # fontconfig：cairo 在 Linux 上靠它找字体。
+        # fonts-noto-cjk 是**兜底**——内置子集装不上时的退路；
+        # 主力是仓库里那份「AIV Sans CJK SC」（下一步装）。
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            fontconfig fonts-noto-cjk \
+            python3-cairo python3-numpy python3-pil python3-pytest
+          fc-cache -f
+
+      - name: 确认 Python 依赖可用
+        run: |
+          # 系统包装的版本与发行版一起走，最稳；只有在装不上时才退回 pip。
+          # fontTools 只用来读内置字体的 cmap（缺字守卫要用）。纯 Python，
+          # 不碰 numpy，不会和系统包的版本打架。
+          python3 -c "import cairo, numpy, PIL, pytest" || \
+            python3 -m pip install --break-system-packages -r requirements/dev.txt
+          python3 -c "import fontTools" || \
+            python3 -m pip install --break-system-packages "fonttools>=4.0"
+
+      - name: 装上内置字体
+        run: |
+          # 仓库内置的字体子集：两台机器用同一份文件，跨机的版式
+          # （步进宽度、收字号结果）才一致。装进 OS 的字体目录——
+          # cairo 在 Linux 上走 fontconfig，只放在仓库目录里它认不得。
+          python3 scripts/install_font.py
+          python3 scripts/install_font.py --check
+
+      - name: 跑测试
+        run: |
+          set -o pipefail
+          python3 -m pytest tests/ -q -rf 2>&1 | tee /tmp/pytest.log || true
+          # 失败条目用 ::error:: 报成注解：**不登录也能从 API 看到是哪条挂了**。
+          # 工作流日志要仓库管理员权限才能下，注解不要——CI 挂了却看不到原因，
+          # 等于白跑。
+          #
+          # `|| true` 必须在**大括号里**：管道优先级高于 `||`，
+          # 写成 `grep ... || true | while` 会被解析成 `grep || (true | while)`；
+          # 而且没有匹配时 grep 退出码是 1，在 `set -e` 下会把整个步骤打断。
+          { grep -E "^(FAILED|ERROR) " /tmp/pytest.log || true; } \
+            | while IFS= read -r line; do
+                echo "::error title=pytest 失败::${line}"
+              done
+          # **失败详情也要进注解**：只报「FAILED xxx」等于没报——断言的
+          # 细节在日志深处，而工作流日志要管理员权限才能下，注解不要。
+          #
+          # awk 里 '%0A' 要当**字符串**拼出来：写成 printf 的格式串会被
+          # 当成转换说明（%0A 不是合法的转换符）。
+          detail=$(awk '/= FAILURES =/{f=1} f && /short test summary info/{exit} f' \
+            /tmp/pytest.log | head -40 \
+            | awk '{gsub(/%/,"%25"); printf "%s", $0; printf "%s", "%0A"}' \
+            | sed 's/%0A$//')
+          if [ -n "${detail}" ]; then
+            echo "::error title=pytest 详情::${detail}"
+          fi
+          if grep -qE "^(FAILED|ERROR) " /tmp/pytest.log; then exit 1; fi

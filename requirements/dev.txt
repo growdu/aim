@@ -1,0 +1,25 @@
+# aim 的开发与测试依赖。
+#
+# Linux 上**优先用系统包**——pip 编译 pycairo 需要 cairo 的开发头文件，
+# 自己编译容易踩坑：
+#
+#   sudo apt-get install -y python3-cairo python3-numpy python3-pil \
+#                          python3-pytest
+#
+# 系统包装不上时再走 pip：
+#
+#   pip install -r requirements/dev.txt
+#
+# 版本写的是**下界**不是钉死：pycairo 得跟着系统的 cairo 走，钉死版本
+# 反而在 Linux 上装不上。
+#
+# **生成流程另需外部 CLI**：mcode-tools（`scripts/character/_mcode.py` 调它）。
+# 那是**素材生产**用的，不是测试用的——测试不碰网络。
+
+pycairo>=1.20
+numpy>=1.21
+Pillow>=9.0
+pytest>=7.0
+# fontTools 只用来读内置字体的 cmap（缺字守卫要用）。纯 Python，
+# 不碰 numpy，不会和系统包的版本打架。
+fonttools>=4.0

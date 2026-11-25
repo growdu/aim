@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "person": "growdu",
+
+  "identity": {
+    "name": "Growdu",
+    "role": "独立开发者",
+    "positioning": "给你讲内核的老兵",
+    "audience": "在做分布式系统的后端工程师",
+    "taboos": ["不做泛泛而谈的科普"],
+    "series": "数据库内核系列"
+  },
+
+  "voice": {
+    "voice_id": "Chinese (Mandarin)_Radio_Host",
+    "voice_name": "电台男主播",
+    "pitch": -1,
+    "speed": 1.33,
+    "emotion": "neutral",
+    "measured": {
+      "f0_median": 118.4,
+      "f1": 528,
+      "f2": 1481,
+      "semitone_dev": 0.1,
+      "dynamic_span": 107,
+      "chars_per_sec": 4.4
+    },
+    "pronunciation": {
+      "行锁": "航锁",
+      "一行": "壹行"
+    }
+  },
+
+  "look": "3D 卡通小象幼崽，浅蓝灰色皮肤，圆大眼、粉色面颊、小巧象牙、头顶呆毛；穿深藏蓝 (#2B4C7E) 工装马甲，胸口一枚琥珀黄 (#F5A623) 圆柱图标，别一块白色小铭牌",
+
+  "persona": "一位冷静克制的工程师。\n- 冷静克制：不要热血漫画式的夸张表情与夸张动作\n- 工程师：马甲口袋与工具挂点排列规整，有随时准备动手的利落感\n- 秩序感：整体蓝绿冷色调、线条规整，不要魔法感、奇幻元素与发光特效\n- 专注：眼神自然专注，像在边想边讲\n- 可靠：整体读起来是「给你讲内核的老兵」，而不是卖萌的吉祥物",
+
+  "brand": {
+    "name": "Growdu",
+    "token": "growdu",
+    "tagline": "深入数据库",
+    "site": "Growdu.cn",
+    "intro_tagline": "Database · Knowledge · Growth",
+    "intro_line": "深入数据库，分享技术之美。{brand}，与你一起探索数据库的无边世界。",
+    "outro_line": "感谢观看。访问 {site}，订阅关注，点赞支持。",
+    "outro_narration": "下次卡住的时候，记得回来。",
+    "outro_subtitle": "Growdu · 把踩过的坑写成方法",
+    "outro_title": "感谢观看",
+    "outro_labels": ["订阅关注", "点赞支持"],
+    "share_suffix": "· 分享技术之美",
+    "share_emphasis": "技术之美",
+    "clips": {
+      "intro": "assets/brand/clips/growdu_intro_3s_1080p.mp4",
+      "outro": "assets/brand/clips/growdu_outro_3s_1080p.mp4"
+    },
+    "audio": {
+      "intro": "assets/brand/audio/intro_mix.wav",
+      "outro": "assets/brand/audio/outro_mix.wav"
+    },
+    "windows": "brand_windows.json"
+  },
+
+  "assets": {
+    "source": "assets/character/growdu2.jpeg",
+    "mascot": "assets/character/growdu_character_2k_nobg.png",
+    "mascot_plain": "assets/character/growdu_character_2k_nobg_nobadge.png",
+    "avatar": "assets/character/growdu_avatar.png",
+    "pose_sheet": "assets/character/growdu_pose_sheet.png"
+  }
+}
