@@ -84,7 +84,22 @@ models/<slug>/model.json          ← 这个人（唯一契约）
   片头片尾上的字全部由代码写上去。
 - **空 = 「还没定」**，不是错误；**契约坏了才是硬错误**（读不了就报错退出）。
 
-## 五、怎么跑
+## 五、怎么用
+
+### 5.1 输入
+
+| 输入 | 从哪来 | 缺了会怎样 |
+| --- | --- | --- |
+| **人的确认结论** | 人写（音色定标 → 形象确认 → 人格确认 → 品牌片定稿） | 契约坏了 → **报错退出**，不降级 |
+| **形象原型参考图** | `model.json` 的 `assets.source`（使用者的素材） | 不跑生成流程，直接用 `assets.mascot` 指的那张 |
+| **已生成的素材** | `models/<slug>/assets/` | **降级**（渲染少一块），`doctor` 单独报 |
+| **内置字体** | 仓内 `assets/fonts/`（入库） | 文字画不出来 → 报错（不画豆腐块） |
+| **生成额度 + mcode-tools CLI** | 系统 | 生成类脚本跑不了（测试不碰网络） |
+| **ffmpeg / ffprobe** | 系统 | 合成与配音跑不了 |
+
+**空 = 「还没定」，不是错误**；**契约坏了才是硬错误**。
+
+### 5.2 怎么跑
 
 ```bash
 # 装依赖（Linux 上优先用系统包，见 requirements/dev.txt）
@@ -94,18 +109,49 @@ pip install -r requirements/dev.txt
 python3 scripts/install_font.py
 python3 scripts/install_font.py --check
 
-# 写出模型（校验通过才写）
+# 1) 建模：把确认结论归一化成契约（**校验通过才写**）
 python3 scripts/build_model.py --person <slug> --out models/<slug>/model.json
 
-# 体检：契约与素材齐不齐（只报告，不改）
+# 2) 体检：契约与素材齐不齐（只报告，不改）
 python3 scripts/doctor.py
+
+# 3) 出形象（每一步都消耗生成额度）
+python3 scripts/character/generate_character.py   # 主形象 + 6 姿态表
+python3 scripts/character/add_glasses.py         # 戴眼镜（没声明眼镜就整体跳过）
+python3 scripts/character/make_white.py          # 透明底合成白底版
+python3 scripts/character/stamp_badge.py         # 盖铭牌（品牌词用真实字体写）
+python3 scripts/character/clear_badge.py         # 抹铭牌（平台判「过度营销」时用）
+
+# 4) 出品牌片
+python3 scripts/brand/generate_poses.py          # 点赞 / 挥手姿态
+python3 scripts/brand/generate_backgrounds.py    # 两张 AI 背景（语义验收）
+python3 scripts/brand/make_audio_brand.py        # 按窗口混成品音轨
+python3 scripts/brand/render_brand.py            # 渲染片头 / 片尾
 
 # 本仓守卫
 python3 -m pytest tests/ -q
 ```
 
-**生成流程要 mcode-tools CLI**（`scripts/character/_mcode.py` 调它）：
-那是**素材生产**用的，测试不碰网络。
+**每条脚本都可以单独跑**（`--intro` / `--outro` / `--thumbsup` / `--wave`
+按需只做一半）。缺素材时它们**降级并说清楚缺什么**，不糊过去。
+详见 [`scripts/character/readme.md`](scripts/character/readme.md) 与
+[`scripts/brand/readme.md`](scripts/brand/readme.md)。
+
+### 5.3 产出
+
+| 产出 | 在哪 | 入库？ |
+| --- | --- | --- |
+| **契约** | `models/<slug>/model.json` | **是** |
+| **配乐窗口决策** | `models/<slug>/brand_windows.json` | **是** |
+| **内置字体子集 + 出处台账** | `assets/fonts/` | **是** |
+| 主形象（白底 / 透明底）、6 姿态表、头像 | `models/<slug>/assets/character/` | 否（使用者的东西） |
+| 品牌片姿态素材、背景图 | `models/<slug>/assets/brand/assets/` | 否 |
+| 品牌片成片（mp4） | `models/<slug>/assets/brand/clips/` | 否 |
+| 成品音轨（旁白 + 配乐） | `models/<slug>/assets/brand/audio/` | 否 |
+| 参照录音 / 样音 | `models/<slug>/assets/voice/` | 否 |
+
+**入库的是「它在哪」，不是「它本身」。** 下游按 `model.json` 指到的位置取用，
+**不 import 本仓**——缝是文件。
 
 ## 六、给 AI 协作者
 
