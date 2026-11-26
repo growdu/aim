@@ -22,6 +22,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -65,9 +66,15 @@ def make_white(source: str | Path, output: str | Path | None = None) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
-    source = Path(argv[0]) if argv else CHAR_DIR / SOURCE_NAME
-    output = Path(argv[1]) if len(argv) > 1 else None
+    parser = argparse.ArgumentParser(
+        description="把透明底素材铺成白底（合成，不重新生成——重新生成会让形象漂移）。")
+    parser.add_argument("source", nargs="?",
+                        help=f"源图（缺省 = {SOURCE_NAME}）")
+    parser.add_argument("output", nargs="?",
+                        help="写到哪儿（缺省 = 源图旁边）")
+    args = parser.parse_args(argv)
+    source = Path(args.source) if args.source else CHAR_DIR / SOURCE_NAME
+    output = Path(args.output) if args.output else None
     if not source.exists():
         print(f"缺少透明底素材：{source}", file=sys.stderr)
         print("先跑 scripts/character/generate_character.py 生成主形象。",

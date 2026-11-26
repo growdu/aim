@@ -32,6 +32,24 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 **元数据里不许出现媒体文件**——只有路径。媒体是素材，**不入库**。
 入库的是「它在哪」，不是「它本身」。
 
+### 1.1 交付形式
+
+**不是 agent，不是 skill，不是二进制**——**是一个 git 仓 + 一组命令行脚本
++ 一份 JSON 契约文件**。
+
+| 谁 | 怎么用 |
+| --- | --- |
+| **人**（生产素材与片子） | clone 仓 → 装依赖与字体 → 逐条跑 `python3 scripts/…`。每条脚本都是独立 CLI，都有 `--help`（`tests/test_cli.py` 盯着） |
+| **下游**（别的程序） | **只读 `models/<slug>/model.json`** 与它指到的素材。**不 import 本仓**——`aimkit/` 是仓内实现，不是对外 API |
+| **CI** | GitHub Actions：装内置字体 → `python3 -m pytest tests/ -q` |
+
+**为什么不是包**：aim 的产物是**素材**（使用者的东西，版权与口味是他们的），
+不是一个能 `pip install` 的库。做成包反而会**假装**它有对外 API——
+而它没有：**缝是文件**。
+
+**依赖**：`requirements/dev.txt`（Linux 上优先用系统包）+ 仓内内置字体
++ `ffmpeg` / `ffprobe` +（生成类脚本）`mcode-tools` CLI 与额度。
+
 ## 二、目录
 
 | 目录 | 装什么 |

@@ -21,6 +21,7 @@
     python3 scripts/fix_plates.py
 """
 
+import argparse
 import os
 import sys
 
@@ -481,7 +482,12 @@ def fix_outro(path):
     im.save(path)
 
 
-def main():
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=("修复品牌片头/片尾底板中被 16:9 画幅裁断的文字"
+                     "（文字一律用真实字体重排，不交给模型生成）。"))
+    parser.parse_args(argv)
+
     os.makedirs(BACKUP, exist_ok=True)
     for name, fn in (
         (f"{_MODEL.person}_intro_1080p.png", fix_intro),
@@ -499,7 +505,8 @@ def main():
         print("修复 %s" % name)
         fn(path)
     print("完成。")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

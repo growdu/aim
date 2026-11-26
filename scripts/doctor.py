@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -143,9 +144,16 @@ def _report_fonts() -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
+    parser = argparse.ArgumentParser(
+        description=("体检：这个人的契约与素材齐不齐。\n"
+                     "**只报告，不改**——素材不见了的原因是多样的，"
+                     "自作主张补一个空文件只会把问题盖住。"))
+    parser.add_argument("model", nargs="?",
+                        help="体检哪一份 model.json（缺省 = 仓里那唯一的一个）")
+    args = parser.parse_args(argv)
+
     try:
-        model = model_mod.load(argv[0] if argv else None)
+        model = model_mod.load(args.model or None)
     except model_mod.ModelError as exc:
         print(f"契约读不了：{exc}", file=sys.stderr)
         return 2

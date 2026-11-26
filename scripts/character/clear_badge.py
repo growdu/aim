@@ -22,6 +22,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -228,9 +229,13 @@ def clear_badge(source: str | Path, output: str | Path | None = None) -> Path | 
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
-    targets = [Path(a) for a in argv] if argv else [
-        CHAR_DIR / f"{SLUG}_character_2k_nobg.png"]
+    parser = argparse.ArgumentParser(
+        description="抹掉铭牌：产出「无标牌」素材（平台判「过度营销信息」时用）。")
+    parser.add_argument("paths", nargs="*",
+                        help="要处理的图（缺省 = 这个人的透明底主形象）")
+    args = parser.parse_args(argv)
+    targets = ([Path(a) for a in args.paths] if args.paths
+               else [CHAR_DIR / f"{SLUG}_character_2k_nobg.png"])
     for target in targets:
         clear_badge(target)
     return 0

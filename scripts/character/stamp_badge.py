@@ -31,6 +31,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -416,8 +417,13 @@ def stamp_badge(path: str | Path) -> Badge | None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
-    targets = [Path(a) for a in argv] if argv else list(DEFAULT_TARGETS)
+    parser = argparse.ArgumentParser(
+        description="给形象盖铭牌：刷白那块白矩形，再用真实字体写上品牌词。")
+    parser.add_argument("paths", nargs="*",
+                        help="要盖的图（缺省 = 这个人素材目录里那几张）")
+    args = parser.parse_args(argv)
+    targets = ([Path(a) for a in args.paths] if args.paths
+               else list(DEFAULT_TARGETS))
     for target in targets:
         stamp_badge(target)
     return 0

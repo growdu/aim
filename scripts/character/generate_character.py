@@ -25,6 +25,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -159,7 +160,20 @@ IMPORTANT — 铭牌上绝对不要有任何文字：胸口那块白色矩形铭
 - 干净的产品级 3D 卡通渲染质感"""
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=("从形象原型重新生成主形象与 6 姿态表。"
+                     "**会消耗生成额度**——prompt 全部从 model.json 读。"))
+    parser.add_argument("--print-prompt", action="store_true",
+                        help="只打印 prompt，不生成（不消耗额度）")
+    args = parser.parse_args(argv)
+
+    if args.print_prompt:
+        print(CHARACTER_PROMPT)
+        print("\n" + "-" * 60 + "\n")
+        print(POSE_PROMPT)
+        return 0
+
     if SOURCE_IMAGE is None or not SOURCE_IMAGE.exists():
         print(
             "缺少形象原型参考图：在 model.json 的 assets.source 里写上"

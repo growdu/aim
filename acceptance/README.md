@@ -12,7 +12,7 @@
 
 | # | 命令 | 跑的是什么 | Expected |
 | --- | --- | --- | --- |
-| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库、**通用性** | **118 passed / 18 skipped** |
+| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库、**通用性** | **133 passed / 18 skipped** |
 | 2 | `python3 -m pytest tests/test_model.py -q` | 模型契约：形状校验、相对路径基准、`schema` 涨版、**不猜用哪个人**、底板配色 | 20 passed |
 | 3 | `python3 -m pytest tests/test_build_model.py -q` | 收拢确认结论：保留原值、不编身份、坏形状不写 | 9 passed |
 | 4 | `python3 -m pytest tests/test_fonts.py -q` | 字体解析：族名解析、缺字探针、hinting 关掉 | 7 passed |
@@ -28,6 +28,7 @@
 | 14 | `python3 -m pytest tests/test_stamp_badge.py -q` | 印章徽章：素材在不在、规格对不对 | 11 passed / 3 skipped |
 | 15 | `python3 -m pytest tests/test_no_hardcoded_person.py -q` | **通用性**：代码里不许写死任何一个人（从模型反推） | 2 passed |
 | 16 | `python3 -m pytest tests/test_person_swap.py -q` | **通用性**：换一个完全不同的人，整套流程必须跑得通 | 7 passed |
+| 17 | `python3 -m pytest tests/test_cli.py -q` | **入口**：每条脚本都要会答 `--help` | 15 passed |
 
 **每条命令都在仓根跑。**
 

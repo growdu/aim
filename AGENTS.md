@@ -52,6 +52,7 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 | **素材入库** | `tests/` | 用户素材不入库、内置字体与授权台账要入库 | `python3 -m pytest tests/test_assets_are_tracked.py -q` |
 | **本仓守卫** | `tests/` | 模型形状、字体出处与缺字、眼镜规格、人格、品牌片 | `python3 -m pytest tests/ -q` |
 | **通用性守卫** | `tests/` | 代码里不许写死任何一个人；换一个完全不同的人必须跑得通 | `python3 -m pytest tests/test_no_hardcoded_person.py tests/test_person_swap.py -q` |
+| **入口守卫** | `tests/` | 每条脚本都要会答 `--help`（交付形式是命令行，就得能问） | `python3 -m pytest tests/test_cli.py -q` |
 
 **跳过**（AI 不读不改）：`models/*/assets/`（这个人的素材，不入库）、
 `models/*/_staging/`（加眼镜流程的中间产物）、`__pycache__/`、`.pytest_cache/`。
