@@ -8,8 +8,7 @@ description: "这个人怎么说话。规范见 specs/音色规范.md；参数�
 这个人怎么说话。**规范见 [`../../specs/音色规范.md`](../../specs/音色规范.md)**。
 
 > **这个目录在 aim 仓**：量尺与校准探针是**这个人的事实**的一部分，
-> 所以跟着人走。**合成**在 aiv 那边（`aiv/video/voice/scripts/synthesize_narration.py`），
-> 它读**同一份** `model.json`。
+> 所以跟着人走。**合成不在本仓**——本仓只存定稿参数与多音字替换表。
 
 ## 定稿参数
 
@@ -43,18 +42,14 @@ F2 偏差 +31 Hz、动态跨度 107 Hz vs 参照 102 Hz。
 | `voice_sample_radio_s135_pm2.mp3` | pitch −2 / speed 1.35 | 备选一，动态跨度最接近参照 |
 | `voice_sample_southern_s150.mp3` | 南方小哥 / speed 1.5 | 备选二，F1 吻合但听感过于平直 |
 
-## 合成（在 aiv 那边）
+## 合成（不在本仓）
 
 每期的旁白是**本机产物**：TTS 合成的输出未必逐字节相同，
 不入库；口播稿与契约入库，缺了旁白可以按口播稿重新合成。
 
-```bash
-cd aiv/video/voice
-python3 scripts/synthesize_narration.py --text "大家好，我是<品牌词>。"
-python3 scripts/synthesize_narration.py --script 字幕.md --out narration.mp3
-```
-
-音色参数与多音字表都从 `model.json` 读——**脚本里不写死任何一个值**。
+用音色引擎合成时，**音色参数与多音字表都从 `model.json` 读**
+（`voice.voice_id` / `voice.pitch` / `voice.speed` / `voice.pronunciation`）——
+**脚本里不写死任何一个值**。
 
 依赖 `mcode-tools` CLI（先加载 `mcode-tools-master` skill）。
 
@@ -88,8 +83,7 @@ python3 scripts/voice/check_pronunciation.py --calibrate
 **替换表在 `model.json` 的 `voice.pronunciation`**——「这个音色会把词首的
 『行』念成 xíng」是**这个人的事实**，所以跟着人走，不写在代码里。
 `scripts/voice/pronunciation.py` 只留**替换规则**（怎么换）与**已归档的
-读音词表**（查词用）；aiv 那边有一份**同样的规则**（各仓各抄一份，
-靠测试钉住行为一致）。
+读音词表**（查词用）；合成端在送进引擎前套用**同一张表**。
 
 替换只作用于送进引擎的文本，**口播稿、字幕表、画面契约一个字都不改**，
 观众听到的仍是「行锁」「一行」。每次合成还会把**真正送进引擎的那份文本**

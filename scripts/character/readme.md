@@ -8,7 +8,7 @@ description: "这个人的讲解者形象。规范见 specs/形象规范.md。"
 这个人的讲解者形象。**规范见 [`../../specs/形象规范.md`](../../specs/形象规范.md)**。
 
 > **这个目录在 aim 仓**。形象是**这个人的事实**，所以素材与生成脚本都跟着人走；
-> aiv 只通过 `model.json` 知道「立绘在哪」，不 import 这里任何东西。
+> 下游只通过 `model.json` 知道「立绘在哪」，不 import 这里任何东西。
 
 ## 素材在哪：问模型
 
@@ -29,8 +29,8 @@ description: "这个人的讲解者形象。规范见 specs/形象规范.md。"
 
 相对路径按 **`model.json` 所在目录**解析（= `models/<slug>/`）。
 
-**素材缺失不是错误**：aiv 那边降级成「不画形象」，照样出片。
-**配了但文件不在才是错**：`make doctor`（aiv 侧）会单独报出来。
+**素材缺失不是错误**：下游降级成「不画形象」，照样出片。
+**配了但文件不在才是错**：素材检查会单独报出来。
 
 素材目录（`models/<slug>/assets/character/`）里通常放这些东西（**不入库**）。
 文件名里的 `<slug>` 取 `model.json` 的 `person`：
@@ -123,7 +123,7 @@ python3 scripts/character/clear_badge.py            # 产出 <slug>_character_2k
 ```
 
 无标牌素材的路径来自 `model.json` 的 `assets.mascot_plain`：
-**没配就没有备用**，aiv 那边的 `NOBADGE=1` 这时不会换素材（照常用带铭牌那份）。
+**没配就没有备用**——没有 `mascot_plain` 时不会换素材（照常用带铭牌那份）。
 
 抹法是刷成**马甲色**：铭牌四周一圈取马甲色像素的中值，按列竖向插值填
 回去（整块一个色会在马甲上留下一块偏平的矩形）。铭牌是脚本印上去的，
@@ -159,5 +159,5 @@ python3 scripts/character/clear_badge.py            # 产出 <slug>_character_2k
 3. **3D 形象不做部件切分动画。** 仓库早期版本试过按颜色连通块把形象切成
    部件再驱动动作，阈值和绝对坐标都是为 2D 扁平图硬编码的，3D 渲染的
    渐变与高光会直接破坏阈值分割。新形象按「静帧素材 + 位移/缩放/淡入」做动效，
-   由 aiv 的 `pipeline/pyv/character.py` 统一接入——**素材位置从
+   由下游统一接入——**素材位置从
    `model.json` 读**，那边不 import 这里任何东西。

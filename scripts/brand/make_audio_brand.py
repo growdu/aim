@@ -11,9 +11,8 @@
 现在的口径：片头取 [s, s+D)，片尾取 [s-D, s)，两段拼起来是同一段连续
 音乐，片尾结束时正好落在片头的起音点上。
 
-窗口由 aiv 仓的 `pipeline/pyv/bgm.py` 挑好后写进
-`models/<slug>/brand_windows.json`（入库——那是决策），这里只负责按那个文件
-切片、混音。换曲子时在 aiv 仓重跑 `python -m pyv.cli bgm windows` 即可，
+窗口决定写进 `models/<slug>/brand_windows.json`（入库——那是决策），
+这里只负责按那个文件切片、混音。换曲子就重挑一次、写回那个文件，
 不必改这个脚本。
 
 产出：
@@ -42,9 +41,9 @@ SLUG = _MODEL.person
 BRAND = aim_paths.brand_dir(SLUG)
 AUDIO = BRAND / "audio"
 
-# **配乐台账在 aiv 仓**（BGM 规则留 aiv），所以这里不写死路径：
-# 指哪一份由使用者给（`AIV_MUSIC_LIBRARY` 环境变量或 `--library`）。
-# 台账里的 `local_path` 相对**台账所在仓库的根**（= 台账的上上级）。
+# **配乐台账不在本仓**，所以这里不写死路径：指哪一份由使用者给
+# （`AIV_MUSIC_LIBRARY` 环境变量或 `--library`）。
+# 台账里的 `local_path` 相对**台账所在目录的上上级**（= 曲库根）。
 LIBRARY = Path(os.environ.get("AIV_MUSIC_LIBRARY", "")).expanduser()
 MUSIC_ROOT = LIBRARY.parent.parent if LIBRARY else None
 
@@ -88,7 +87,8 @@ def load_windows() -> dict:
     """读入已入库的窗口决定。"""
     if not WINDOWS.is_file():
         print(
-            f"缺少 {WINDOWS}——先在 aiv 仓跑 `python -m pyv.cli bgm windows` 挑窗口",
+            f"缺少 {WINDOWS}——先挑好窗口并写进那个文件"
+            "（格式见 models/<slug>/brand_windows.json）",
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -105,7 +105,7 @@ def resolve_track(track_id: str) -> Path:
     if not LIBRARY or not LIBRARY.is_file():
         print(
             "没指到配乐台账——用 AIV_MUSIC_LIBRARY 环境变量或 --library 指一份"
-            "（台账在 aiv 仓：video/music/library.json）",
+            '（台账是一份 JSON：{"tracks":[{"id","local_path","sha256"}]}）',
             file=sys.stderr,
         )
         raise SystemExit(1)
@@ -175,7 +175,10 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="为品牌片头/片尾合成成品音轨")
-    parser.add_argument("--library", help="配乐台账（aiv 仓的 video/music/library.json）")
+    parser.add_argument(
+        "--library",
+        help="配乐台账（一份 JSON：tracks 里记着曲子的 id / local_path / sha256）",
+    )
     args = parser.parse_args()
     if args.library:
         LIBRARY = Path(args.library).expanduser()

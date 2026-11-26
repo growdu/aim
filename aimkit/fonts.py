@@ -1,6 +1,5 @@
 """字体解析——**精简版**。
 
-aiv 的 `pyv/fonts.py` 有 700 行（它要给整条渲染链做跨机版式对齐）。
 aim 只需要四件事：
 
 1. 定下**哪个字体族名**；
@@ -8,9 +7,9 @@ aim 只需要四件事：
 3. 判断**某个字画不画得出来**；
 4. 画不出来就**报错**，不画豆腐块。
 
-**跨仓零 import**：这里不 import aiv 的任何东西。
-字体子集是**静态拷贝**（`assets/fonts/`），两边**同一份文件**——
-aiv 侧有一条测试用 sha256 钉住（见 aiv 的 `tests/test_model_seam.py`）。
+**跨仓零 import**：这里不 import 任何别的仓的东西。
+字体子集**在仓内**（`assets/fonts/`，**入库**）——
+两台机器用同一份文件，跨机版式才对得上。
 
 **为什么关 hinting**：hinting 会让「几何」不再是字体文件的性质。
 cairo 在 Linux 上走 FreeType，默认开着 autohinter：轮廓点被吸附到像素网格，
@@ -29,7 +28,7 @@ from . import paths
 
 #: 环境变量：显式指定字体族名（CI、特殊机器用）。
 #:
-#: **名字沿用 aiv 的那个**——两个仓在同一个工作区里，字体验证结果要对得上。
+#: **名字是历史沿用**——对外接口，不改。
 FONT_ENV = "AIV_FONT_FAMILY"
 
 #: 内置字体的族名（**必须唯一**：跟系统字体重名，fontconfig 就在两份里二选一）。
@@ -38,7 +37,7 @@ BUNDLED_FAMILY = "AIV Sans CJK SC"
 #: 等宽那一族（代码块用）。
 BUNDLED_MONO_FAMILY = "AIV Mono CJK SC"
 
-#: 内置字体文件在仓里的位置（**静态拷贝**，与 aiv 那份同字节）。
+#: 内置字体文件在仓里的位置（**入库**，跨机版式靠它）。
 FONTS_DIR = paths.FONTS_DIR
 BUNDLED_PATHS = (
     FONTS_DIR / "AIVSansCJKSC-Regular.otf",
@@ -46,7 +45,7 @@ BUNDLED_PATHS = (
     FONTS_DIR / "AIVMonoCJKSC-Regular.otf",
 )
 
-#: 找不到字体时的提示（跟 aiv 那份一致的口径）。
+#: 找不到字体时的提示。
 INSTALL_HINT = (
     "装一套中文字体：\n"
     "  内置字体（推荐：两台机器用同一份，跨机版式一致）：\n"

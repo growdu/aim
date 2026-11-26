@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """把内置字体装进 OS 的字体目录，让 cairo 找得到它。
 
-**为什么不能只把字体放在仓库里。** 实测（2026-11-16，aiv 那边的同一份字体）：
+**为什么不能只把字体放在仓库里。** 实测（2026-11-16）：
 
 - cairo 在 macOS 上走 CoreText，**不认 fontconfig 目录**——把字体放进
   `~/.local/share/fonts/` 后 `fc-list` 找得到，cairo 的 `select_font_face`

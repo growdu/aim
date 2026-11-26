@@ -5,7 +5,7 @@
   brand/clips/<slug>_intro_3s_1080p.mp4
   brand/clips/<slug>_outro_3s_1080p.mp4
 
-技术路线（与 pipeline/pyv/render.py 一致的 cairo 逐帧渲染）：
+技术路线（cairo 逐帧渲染）：
 
     AI 生成的纯环境背景底板（无角色、无文字）
       + canonical 角色姿态图（透明底 PNG，代码合成）

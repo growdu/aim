@@ -11,8 +11,8 @@
 2. **真正画出去的字**：把片头 / 片尾真渲一遍，收齐画上去的每一个字，
    核对字体里有没有。**不看源码，看画面**——源码改不动它。
 
-另一半（场景与字幕的出字路）留在 aiv 那边：那边才是画场景与烧字幕的地方。
-两边的字体子集是**同一份文件的静态拷贝**，靠 aiv 侧的 sha256 守卫钉住一致。
+另一半（场景与字幕的出字路）不在本仓——那边才是画场景与烧字幕的地方。
+本仓的字体子集**入库**，跨机靠同一份文件（sha256 钉住）。
 """
 from __future__ import annotations
 
@@ -256,8 +256,8 @@ def test_the_brand_token_is_present():
 def test_the_declared_clips_live_under_the_brand_dir():
     """模型声明的品牌片与音轨 = 脚本写出的位置。
 
-    aiv 只认 `model.json` 里 `brand.clips` / `brand.audio` 指到的文件，
-    两边对不上，aiv 就拼不进去。
+    下游只认 `model.json` 里 `brand.clips` / `brand.audio` 指到的文件，
+    两边对不上，下游就拼不进去。
     """
     brand_dir = aim_paths.brand_dir(_MODEL.person)
     for kind in ("intro", "outro"):

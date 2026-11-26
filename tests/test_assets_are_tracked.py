@@ -14,8 +14,7 @@
 不入库的是**素材**：媒体文件只写**路径**（在 `model.json` 里），
 文件本身留在本机（`.gitignore` 挡住）。
 
-**与 aiv 那边的同一条规矩**（`video/pipeline/tests/test_assets_are_tracked.py`）
-是**两处各守一份**——跨仓零 import，缝是文件，守门人各在自家门口。
+**入库的只有事实**：模型契约与内置字体入库，素材不入库。
 """
 from __future__ import annotations
 

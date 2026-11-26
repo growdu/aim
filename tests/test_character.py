@@ -6,7 +6,7 @@
 没有任何报错。
 
 素材位置同理：`model.json` 声明的路径与脚本实际写出的路径必须一致，
-否则模型换人之后，aiv 找不到的那张图就在别处。
+否则模型换人之后，下游找不到的那张图就在别处。
 """
 from __future__ import annotations
 
@@ -84,8 +84,8 @@ def test_the_batch_targets_live_under_the_person_asset_dir():
 def test_the_main_image_the_model_declares_is_the_one_we_produce():
     """模型声明的透明底主形象 = 脚本产出的那一张。
 
-    **这条是给 aiv 用的**：aiv 只认 `model.json` 里 `assets.mascot`
-    指到的那张图。两边名字对不上，aiv 就找不到素材——而画面照样
+    **这条是给下游用的**：下游只认 `model.json` 里 `assets.mascot`
+    指到的那张图。两边名字对不上，下游就找不到素材——而画面照样
     生成、时长照样对，只在合成角色时缺一块。
     """
     glasses = _add_glasses()

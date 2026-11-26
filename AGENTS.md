@@ -4,15 +4,13 @@
 > 它回答四个问题：本仓库是什么、有哪些模块、流水线怎么走、AI 该读什么不该碰什么。
 >
 > **给谁读**：AI 协作者。人读 [`README.md`](README.md)（本仓库总览）。
-> **与别的仓的关系**（谁是谁的上下游、缝在哪儿）读仓库外的
-> [`../aid/REPOS.md`](../aid/REPOS.md)（**唯一的一份**；
-> `../aiv/REPOS.md` 是「视频线这一侧」的展开，冲突时以 `aid/` 那份为准）。
+> 本仓**自足**：不 import 别的仓，也不依赖别的仓——缝是**一个文件**。
 
 ---
 
 ## 一、本仓库是什么
 
-**人这一侧**：把「这个人是谁」定下来，落成一份 JSON，交给 aiv 去渲染。
+**人这一侧**：把「这个人是谁」定下来，落成一份 JSON，交给下游去渲染。
 
 ```
 确认流程（音色定标 → 形象确认 → 人格确认 → 品牌片定稿）
@@ -21,13 +19,13 @@
 models/<slug>/model.json          ← 这个人（唯一契约）
    │
    ▼
-aiv（视频线）读它 → 渲染 → 成片
+下游读它 → 渲染 → 成片
 ```
 
-**下游**：[aiv](https://github.com/growduai/aiv)（视频线）。
-**上游**：无——母稿树在 aik 那边，与本仓无关。
+**下游**：读这份 JSON 去渲染成片。
+**上游**：无。
 
-**缝是文件**：aiv 读 `model.json`，**不 import 本仓的任何模块**。
+**缝是文件**：下游读 `model.json`，**不 import 本仓的任何模块**。
 
 ---
 
@@ -53,42 +51,17 @@ aiv（视频线）读它 → 渲染 → 成片
 
 ---
 
-## 三、缝：下游在哪儿
+## 三、AI 协作者的行为准则
 
-**下游是 aiv**，缝是**一个文件**：
-
-```json
-// models/<slug>/model.json
-{ "schema": 1, "person": "growdu", "voice": { "voice_id": "..." }, ... }
-```
-
-aiv 那边怎么指过来：
-
-```toml
-# aiv/video/config.toml
-[model]
-path = "../aim/models/growdu/model.json"
-```
-
-环境变量 `AIM_MODEL` 优先于配置文件。**aiv 不 import 本仓**——
-它连 `aimkit/` 都不碰，只读那份 JSON。
-
----
-
-## 四、AI 协作者的行为准则
-
-### 4.1 必读
+### 3.1 必读
 
 1. **本文件**（`AGENTS.md`）
 2. [`README.md`](README.md)——本仓库总览
-3. [`../aiv/plans/13-aim-人物模型仓.md`](../aiv/plans/13-aim-人物模型仓.md)——
-   设计文档（**为什么是这些形状**）
-4. [`../aiv/plans/14-aim-新仓.md`](../aiv/plans/14-aim-新仓.md)——
-   实施计划（本仓怎么建起来的）
 
-### 4.2 必守
+### 3.2 必守
 
-- **跨仓零 import**：不 import aiv 的任何模块。缝是**文件**。
+- **跨仓零 import**：下游只**读** `model.json`，不 import 本仓的任何模块。
+  缝是**文件**。
 - **入库的是事实，不入库的是产物与素材**：素材只在本地，
   入库的是「它在哪」。
 - **只做框架，不做内容**：规范写成可替换的规则模板——
@@ -103,20 +76,20 @@ path = "../aim/models/growdu/model.json"
 - **形状变了就涨 `schema`**：读不懂新形状时**报错退出**，不静默忽略。
 - **验收按模块拆开**：谁改了什么，只有谁的套件会红。
 
-### 4.3 禁碰
+### 3.3 禁碰
 
 - **`models/*/assets/`**：这个人的素材，不入库。
 - **`models/*/_staging/`**：加眼镜流程的中间产物。
 - **`.remember/`、`.worktrees/`**：会话记忆与并行工作区，不是仓库的一部分。
 
-### 4.4 改之前先跑
+### 3.4 改之前先跑
 
 ```bash
 python3 -m pytest tests/ -q
 ```
 
 **全套只有一条**——本仓小，模块之间又共用同一份 `model.json`，
-拆开跑没有意义（不像 aiv 那样按模块拆）。
+拆开跑没有意义。
 
 > **跑之前：依赖要在**（Linux 上**优先用系统包**，见 `requirements/dev.txt`）：
 > `python3-cairo python3-numpy python3-pil python3-pytest python3-scipy`，
@@ -127,8 +100,8 @@ python3 -m pytest tests/ -q
 
 ---
 
-## 五、维护这份文件
+## 四、维护这份文件
 
 - 模块增删时，**必须**更新 §二。
-- 缝的位置变化时，**必须**更新 §三与 §四。
+- 契约或缝的形状变化时，**必须**更新 §一与 §三。
 - 验收命令变化时，**必须**更新 [`acceptance/README.md`](acceptance/README.md)。

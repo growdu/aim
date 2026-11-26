@@ -11,7 +11,7 @@ description: "这个人的两支品牌片：片头 站名字标 + 标语；片�
 两支都是 **2.833 秒（68 帧 @ 24fps）**，都在 3 秒上限内，都带角色形象。
 
 > **这个目录在 aim 仓**。品牌片是**这个人的素材**，所以渲染脚本与素材都跟着人走；
-> aiv 只通过 `model.json` 知道「片在哪」，不 import 这里任何东西。
+> 下游只通过 `model.json` 知道「片在哪」，不 import 这里任何东西。
 
 ## 素材在哪：问模型
 
@@ -36,7 +36,7 @@ description: "这个人的两支品牌片：片头 站名字标 + 标语；片�
 ```
 
 相对路径按 **`model.json` 所在目录**解析（= `models/<slug>/`）。
-aiv 那边按**目录**挑片（取 `intro` 的父目录），所以两个文件得放在同一个目录里。
+下游按**目录**挑片（取 `intro` 的父目录），所以两个文件得放在同一个目录里。
 
 按这个声明，素材目录里该放什么（`models/<slug>/assets/brand/`）：
 
@@ -60,11 +60,11 @@ assets/brand/
 它记的是「片头片尾取曲子的哪一段」这个决定——**决策入库，音频不入库**。
 换曲子时重挑一次即可，不用改任何脚本。
 
-**素材缺失不是错误**：没配就是没配，aiv 那边安静跳过，
+**素材缺失不是错误**：没配就是没配，下游安静跳过，
 流水线照常出片，只是不带片头片尾。
-**配了但文件不在才是错**：aiv 的 `make doctor` 会单独报出来。
+**配了但文件不在才是错**：素材检查会单独报出来。
 
-挑片规则（aiv 的 `pipeline/pyv/brand.py`）：先看模型指明的那张
+挑片规则：先看模型指明的那张
 （`clips/intro.mp4` 之类），没有就在 clips 目录里按名字找
 （文件名含 `intro` / `outro`），取**最短**的那张——规格要求 ≤ 3 秒。
 
@@ -75,14 +75,9 @@ assets/brand/
 片尾结束时正好落在
 片头的起音点上——两段拼起来是同一段连续音乐，形成闭环。
 
-口径与判据见 aiv 的《背景音乐规范》§6 末条与 §7 的 `bgm.brand-*` 三条规则。
-挑窗口（在 aiv 那边，**配乐库是 aiv 的事**）：
-
-```bash
-cd aiv/video/pipeline
-python -m pyv.cli bgm windows       # 重挑并写进模型声明的 windows 路径
-python -m pyv.cli bgm brand-check   # 校验：首尾相接 / 曲子指纹 / 能量
-```
+窗口决定（片头片尾各取曲子的哪一段）记在 `models/<slug>/brand_windows.json`
+——**决策入库，音频不入库**。换曲子就重挑一次、写回那个文件，脚本不用改。
+`scripts/brand/make_audio_brand.py` 按它切片、混音，并核对曲子的 sha256 指纹。
 
 **别用相关系数判断两段是否相接**——有瞬态的音乐上这个指标没有意义
 （旧口径 +0.0543、新口径 -0.0655，两个数都说明不了问题）。
@@ -131,19 +126,13 @@ H3 视频生成最短 4 秒，做不出 3 秒以内的片头，所以整条链�
 旁白直接呼应人格的动机句。片头的口号与胶囊已经承担了「技术能力集成」的
 品牌表达，保持不变。
 
-改旁白要重新合成（**合成在 aiv 那边**，音色与参数从同一份 `model.json` 读）：
-
-```bash
-cd aiv/video
-python3 voice/scripts/synthesize_narration.py \
-  --text "下次卡住的时候，记得回来。" --out ../aim/models/growdu/assets/brand/audio/voice_outro.mp3
-```
+改旁白要重新合成：**合成不在本仓**——本仓只存定稿参数与多音字替换表。
+合成时**音色与参数从同一份 `model.json` 读**（`voice.voice_id` / `voice.pitch` /
+`voice.speed`），替换表在 `voice.pronunciation`。
 
 ## 重新生成
 
 ```bash
-cd aiv/video/pipeline
-python -m pyv.cli bgm windows          # 挑片头片尾的配乐窗口（写进模型声明的 windows 路径）
 cd aim
 python3 scripts/brand/make_audio_brand.py    # 按窗口从曲库取 motif，混出成品音轨
 python3 scripts/brand/render_brand.py        # 铭牌盖章 + 渲染片头 + 片尾（--intro / --outro 可单渲）
@@ -201,38 +190,29 @@ python3 scripts/brand/render_brand.py          # 重渲两支片
   会真渲一遍片头片尾（`aim/tests/test_brand.py`）。
 - **成品音轨必须接进成片，不能只做好放在那儿。** 2026-11-12 踩过：
   motif 的成品音轨（`intro_mix.wav`）做出来了，却没接进成片——
-  aiv 的 `brand.py` 当时从品牌片 mp4 里抽音轨，嵌进去的还是切换前的旧 AI 配乐。
-  现在 aiv 的 `_resolve_audio_source()` 优先取模型声明的品牌音轨目录里的
+  下游当时从品牌片 mp4 里抽音轨，嵌进去的还是切换前的旧 AI 配乐。
+  现在下游优先取模型声明的品牌音轨目录里的
   `{intro,outro}_mix.wav`，mp4 音轨只作兜底，换配乐不必重渲 3D 形象。
 - **淡出要短。** 片尾的音乐是片头那段的前一截，末尾淡出 0.3 秒会把刚接上的
   闭环淡没。现在片头淡入 0.08 秒、淡出 0.08 秒，片尾不淡入（它的窗口是曲子
   中段的接缝，淡入像另起一段），成品混音再收 0.05 秒。
 
-## 在 aiv 流水线里的用法
+## 下游怎么用
 
-品牌片是 aiv 流水线的一等公民，`pipeline/pyv/brand.py` 负责接入：
+品牌片是流水线的**一等公民**，接入口在下游那一侧——
+本仓只管把片子与音轨做对、把位置声明在模型里：
 
-```bash
-cd aiv/video/pipeline
-make EP=<期路径> brand     # 把 brand_intro / brand_outro 插进契约首尾，正文整体后移
-make EP=<期路径> render    # 渲染正文片段
-make EP=<期路径> compose   # 拼接 + 混音（品牌片音轨自动对位）出片
-```
-
-要点：
-
-- `brand.py` 按模型声明的 clips 目录挑片：先看指明的那张，
+- 按模型声明的 clips 目录挑片：先看指明的那张，
   没有就在目录里按名字找（文件名含 `intro` / `outro`），取最短的那张；
   一张都没有就安静跳过。
 - 素材会被转码成 1920×1080 @24fps、时间基 1/24000，与 cairo 渲染出的正文片段
   完全一致，concat 才不会漂时长。
-- 品牌片自带人声 + 配乐，`compose` 会把每段品牌音轨按场景起点 `adelay` 对位后
+- 品牌片自带人声 + 配乐，混音时把每段品牌音轨按场景起点 `adelay` 对位后
   与正文旁白 `amix`；正文旁白自动推迟到第一个 `code` 场景的起点。
 - 品牌音轨取的是模型声明的音轨目录里的 `{intro,outro}_mix.wav`（成品音轨），
   不是品牌片 mp4 里烘焙的那条；详见上面的「踩过的坑」。
-- `make brand` 可重复执行：旧的 `brand_*` 场景会被移除、正文位移会被撤销后重算。
 - 品牌片是使用者的素材，仓库里不携带——新克隆的机器上**一张品牌片都没有**，
-  `brand.py` 会安静跳过，流水线照常出片，只是不带片头片尾。
+  下游会安静跳过，流水线照常出片，只是不带片头片尾。
 
 ## 快速合并
 

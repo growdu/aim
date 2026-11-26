@@ -4,11 +4,11 @@
 > 音色、音调、形象、人格、品牌片——确认完之后，落成**一份 JSON**
 > （`models/<slug>/model.json`），那一份就是**这个人**。
 >
-> **下游**：[aiv](https://github.com/growduai/aiv)（视频线）读这份 JSON，
-> 把「人」渲染成片。**缝是文件**：aiv 不 import 本仓的任何模块。
+> **下游**读这份 JSON，把「人」渲染成片。**缝是文件**：下游只**读**这份
+> JSON，**不 import 本仓的任何模块**。
 >
-> **上游**：无。母稿树在 [aik](https://github.com/growduai/aik) 那边，
-> 与本仓无关——本仓不生产内容，只生产**内容要用的那个人**。
+> **本仓自足**：不 import 别的仓，也不依赖别的仓——只有一个外部环境依赖
+> （`ffmpeg` / `ffprobe`）与一份内置字体。
 
 ---
 
@@ -21,7 +21,7 @@
 models/<slug>/model.json          ← 这个人（唯一契约）
    │
    ▼
-aiv 读它 → 渲染 → 成片
+下游读它 → 渲染 → 成片
 ```
 
 **元数据里不许出现媒体文件**——只有路径。媒体是素材，**不入库**。
@@ -61,7 +61,8 @@ aiv 读它 → 渲染 → 成片
 
 ## 四、规矩
 
-- **跨仓零 import**：不 import aiv 的任何模块。缝是**文件**。
+- **跨仓零 import**：下游只**读** `model.json`，不 import 本仓的任何模块。
+  缝是**文件**。
 - **入库的是事实，不入库的是产物与素材**：素材（立绘、姿态表、头像、
   品牌片底板、样例视频）是使用者的东西，只在本地；入库的是「它在哪」。
 - **只做框架，不做内容**：规范写成可替换的规则模板——**规则**是框架的，
@@ -92,18 +93,7 @@ python3 -m pytest tests/ -q
 **生成流程要 mcode-tools CLI**（`scripts/character/_mcode.py` 调它）：
 那是**素材生产**用的，测试不碰网络。
 
-## 六、与别的仓的关系
-
-| 仓 | 关系 | 缝 |
-| --- | --- | --- |
-| [aik](https://github.com/growduai/aik) | 无关——本仓不生产母稿 | 无 |
-| [aiv](https://github.com/growduai/aiv) | **本仓的产物是 aiv 的输入之一** | `model.json`（文件） |
-| [aid](https://github.com/growduai/aid) | 无关——图文线不认「人」 | 无 |
-
-aiv 那边怎么读这份文件，看
-[`../aiv/plans/15-aiv-读model.md`](../aiv/plans/15-aiv-读model.md)。
-几个仓之间的关系（谁是谁的上下游、缝在哪儿）看
-[`../aid/REPOS.md`](../aid/REPOS.md)（**唯一的一份**）。
+## 六、给 AI 协作者
 
 给 AI 协作者的入口是 [`AGENTS.md`](AGENTS.md)。
 验收矩阵在 [`acceptance/README.md`](acceptance/README.md)。
