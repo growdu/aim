@@ -108,7 +108,7 @@ def test_a_narrow_ring_would_miss_the_plate_rim(monkeypatch):
     「带描边的铭牌也要找得到」这件事。
     """
     stamp = load_script("character/stamp_badge.py")
-    monkeypatch.setattr(stamp, "VEST_RING_WIDTH", 4)
+    monkeypatch.setattr(stamp, "RING_WIDTH", 4)
     assert stamp.find_badge(_synthetic_vest_with_rimmed_badge()) is None, \
         "环宽 4px 竟然找到了带描边的铭牌——注入没生效，守卫可能是瞎的"
 

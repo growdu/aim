@@ -32,7 +32,7 @@ def test_it_keeps_the_existing_values(tmp_path):
     script = _build_model()
     source = tmp_path / "draft.json"
     _write(source, {
-        "schema": 1,
+        "schema": 3,
         "person": "growdu",
         "voice": {"voice_id": "Chinese (Mandarin)_Radio_Host"},
         "look": "一只小象",
@@ -52,7 +52,7 @@ def test_it_does_not_invent_identity_values(tmp_path):
     script = _build_model()
     source = tmp_path / "draft.json"
     _write(source, {
-        "schema": 1,
+        "schema": 3,
         "person": "growdu",
         "voice": {"voice_id": "v"},
         "identity": {"taboos": []},
@@ -76,7 +76,7 @@ def test_it_fails_when_the_draft_is_another_person(tmp_path, capsys):
     script = _build_model()
     source = tmp_path / "draft.json"
     _write(source, {
-        "schema": 1,
+        "schema": 3,
         "person": "alice",
         "voice": {"voice_id": "v"},
     })
@@ -94,7 +94,7 @@ def test_it_refuses_to_write_without_a_voice_id(tmp_path, capsys):
     """音色 id 是必填项——缺了就是契约坏了，不是「还没定」。"""
     script = _build_model()
     source = tmp_path / "draft.json"
-    _write(source, {"schema": 1, "person": "growdu", "voice": {}})
+    _write(source, {"schema": 3, "person": "growdu", "voice": {}})
     out = tmp_path / "model.json"
 
     assert script.main(["--person", "growdu", "--from", str(source),
@@ -108,7 +108,7 @@ def test_the_written_file_passes_validate(tmp_path):
     script = _build_model()
     source = tmp_path / "draft.json"
     _write(source, {
-        "schema": 1,
+        "schema": 3,
         "person": "growdu",
         "voice": {"voice_id": "v"},
         "persona": "一段人格。",
@@ -128,7 +128,7 @@ def test_the_check_mode_writes_nothing(tmp_path):
     script = _build_model()
     source = tmp_path / "draft.json"
     _write(source, {
-        "schema": 1,
+        "schema": 3,
         "person": "growdu",
         "voice": {"voice_id": "v"},
     })
@@ -145,7 +145,7 @@ def test_the_empty_shells_are_filled_in(tmp_path, field):
     script = _build_model()
     source = tmp_path / "draft.json"
     _write(source, {
-        "schema": 1,
+        "schema": 3,
         "person": "growdu",
         "voice": {"voice_id": "v"},
     })

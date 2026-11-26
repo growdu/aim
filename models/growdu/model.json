@@ -1,16 +1,16 @@
 {
-  "schema": 1,
+  "schema": 3,
   "person": "growdu",
-
   "identity": {
     "name": "Growdu",
     "role": "独立开发者",
     "positioning": "给你讲内核的老兵",
     "audience": "在做分布式系统的后端工程师",
-    "taboos": ["不做泛泛而谈的科普"],
+    "taboos": [
+      "不做泛泛而谈的科普"
+    ],
     "series": "数据库内核系列"
   },
-
   "voice": {
     "voice_id": "Chinese (Mandarin)_Radio_Host",
     "voice_name": "电台男主播",
@@ -30,11 +30,8 @@
       "一行": "壹行"
     }
   },
-
   "look": "3D 卡通小象幼崽，浅蓝灰色皮肤，圆大眼、粉色面颊、小巧象牙、头顶呆毛；穿深藏蓝 (#2B4C7E) 工装马甲，胸口一枚琥珀黄 (#F5A623) 圆柱图标，别一块白色小铭牌",
-
   "persona": "一位冷静克制的工程师。\n- 冷静克制：不要热血漫画式的夸张表情与夸张动作\n- 工程师：马甲口袋与工具挂点排列规整，有随时准备动手的利落感\n- 秩序感：整体蓝绿冷色调、线条规整，不要魔法感、奇幻元素与发光特效\n- 专注：眼神自然专注，像在边想边讲\n- 可靠：整体读起来是「给你讲内核的老兵」，而不是卖萌的吉祥物",
-
   "brand": {
     "name": "Growdu",
     "token": "growdu",
@@ -46,7 +43,10 @@
     "outro_narration": "下次卡住的时候，记得回来。",
     "outro_subtitle": "Growdu · 把踩过的坑写成方法",
     "outro_title": "感谢观看",
-    "outro_labels": ["订阅关注", "点赞支持"],
+    "outro_labels": [
+      "订阅关注",
+      "点赞支持"
+    ],
     "share_suffix": "· 分享技术之美",
     "share_emphasis": "技术之美",
     "clips": {
@@ -57,14 +57,31 @@
       "intro": "assets/brand/audio/intro_mix.wav",
       "outro": "assets/brand/audio/outro_mix.wav"
     },
-    "windows": "brand_windows.json"
+    "colors": {
+      "deep": "#2B4C7E",
+      "light": "#D6E9FA"
+    },
+    "windows": "brand_windows.json",
+    "backgrounds": {
+      "intro": "一张深蓝色调的现代超大规模数据中心机房内部。\n\n场景：一条机房主走廊向纵深延伸，两侧是整齐排列的深灰色服务器机柜，\n机柜面板的指示灯发出冷蓝色微光，地面是抛光环氧地坪，映出机柜灯带的竖向倒影，\n天花板是整齐排列的线缆桥架，远处尽头有一处柔和的冷白亮光。\n镜头平视，视线沿走廊中心线向深处延伸，形成强烈的单点透视纵深。\n\n- 整体偏暗，冷蓝为主调；机柜指示灯是画面里最亮的元素，但不要过曝\n- 构图：地面占下半部，天花板线缆占上部约三分之一，走廊尽头在画面中偏左\n- 画面右侧三分之一（将来压暗后放白色文字）要相对干净、对比度低一些，\n  不要堆满密集灯带\n- 干净、专业、冷峻、电影感的产品级 3D 渲染质感",
+      "outro": "一张蓝调现代城市天际线远景，傍晚时分。\n\n场景：一整片连续的城市天际线，从左到右是同一座城市——远处的高层建筑群、\n中景的办公楼、脚下平铺的城市街区与一条向远处收束的街道。\n天空是清澈的浅蓝到近白的渐变，飘着极淡的云，一轮柔和的日光从画面偏左上方照下来，\n建筑群之间有真实的距离层次与空气透视（越远越淡越蓝）。\n\n- 主色调是浅蓝、天青与近白，通透明亮，不要深色\n- 建筑不要出现密集的窗户网格噪点，形体要简洁干净\n- 构图：地平线压在画面下方约三分之一，天空占据大半幅；右侧靠近地平线的位置\n  建筑群要低一些、亮一些（将来那里要压白后放深蓝色文字）\n- 干净、宁静、专业的产品级 3D 渲染质感"
+    }
   },
-
   "assets": {
     "source": "assets/character/growdu2.jpeg",
     "mascot": "assets/character/growdu_character_2k_nobg.png",
     "mascot_plain": "assets/character/growdu_character_2k_nobg_nobadge.png",
     "avatar": "assets/character/growdu_avatar.png",
     "pose_sheet": "assets/character/growdu_pose_sheet.png"
+  },
+  "look_spec": {
+    "glasses": {
+      "style": "方形细边框",
+      "color": "#2B4C7E"
+    },
+    "vest_color": "#2B4C7E",
+    "badge_icon_color": "#F5A623",
+    "badge_text_color": "#1B2A47",
+    "headset": "黑色头戴式耳机 + 麦克风臂"
   }
 }

@@ -378,8 +378,8 @@ def fix_intro(path):
     pill = (995, 696, MARGIN, 830)
     items.append((lambda d, c: draw_pill(d, pill, c, width=3), cyan))
     # 白字 / 金字的**断点由 share_emphasis 给出，别去猜空格**：
-    # 后缀「· 分享技术之美」里「享」与「技」之间没有空格，
-    # rpartition(" ") 会断在「·」后面，画面就变了。
+    # 这个人的后缀中间没有空格，rpartition(" ") 会断在「·」后面，
+    # 画面就变了。
     g_txt = _CONFIG.brand_share_emphasis
     w_txt = _CONFIG.brand_tagline + " " + _CONFIG.brand_share_suffix.removesuffix(g_txt)
     f_cn, size = fit_font(
@@ -416,7 +416,7 @@ def fix_outro(path):
     d = ImageDraw.Draw(im)
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
 
-    # 副标题：右对齐到 1860（与「感谢观看！」同一右边界）
+    # 副标题：右对齐到 1860（与标题同一右边界）
     latin, cjk = _split_subtitle(_CONFIG.brand_outro_subtitle)
     best = None
     for size in range(84, 30, -1):

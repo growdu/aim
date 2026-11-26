@@ -248,6 +248,23 @@ def test_the_brand_text_comes_from_the_model():
     assert brand.OUTRO_NARRATION == section.get("outro_narration", "")
 
 
+def test_the_plate_colours_come_from_the_model():
+    """底板的两个颜色**从模型读**。
+
+    它们以前是渲染脚本里的两行常量——换个人，片子还带着上一个人的配色，
+    而画面照常生成、时长照常对。
+    """
+    from aimkit import look as look_spec
+
+    brand = _render_brand()
+    deep = _MODEL.brand_colour("deep")
+    light = _MODEL.brand_colour("light")
+    assert deep and light, "模型没声明底板配色"
+
+    assert brand.DEEP == pytest.approx(look_spec.cairo_rgb(deep, (0.0, 0.0, 0.0)))
+    assert brand.LIGHT == pytest.approx(look_spec.cairo_rgb(light, (1.0, 1.0, 1.0)))
+
+
 def test_the_brand_token_is_present():
     """铭牌上的品牌词不能空——空着就没有品牌标识。"""
     assert _MODEL.brand.get("token", "").strip()

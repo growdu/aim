@@ -31,11 +31,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _mcode import call, download, upload  # noqa: E402  同目录脚本
 from _persona import persona_prompt  # noqa: E402  人格气质唯一来源
-from add_glasses import GLASSES_COLOR, GLASSES_STYLE  # noqa: E402  眼镜规格唯一来源
 from stamp_badge import stamp_badge  # noqa: E402  同目录脚本
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))          # aim 仓根
+from aimkit import look as look_spec  # noqa: E402  形象规格唯一来源
 from aimkit import model as model_mod  # noqa: E402
 from aimkit import paths as aim_paths  # noqa: E402
 
@@ -43,9 +43,18 @@ _MODEL = model_mod.load()
 SLUG = _MODEL.person
 LOOK = _MODEL.look or "3D 卡通风格的拟人化角色"
 BRAND_NAME = _MODEL.brand.get("name", "")
-# 身份层：可为空——空了就用通用写法，不编。
-ROLE = _MODEL.identity.get("role") or "技术讲解者"
-POSITIONING = _MODEL.identity.get("positioning") or "给你讲内核的老兵"
+# 身份层：**空就是空**，不编。
+#
+# 以前这里给 `role` / `positioning` 都备了一个兜底文案——
+# 那是**替这个人编身份**：模型里没写，脚本就悄悄塞一个进去，
+# 生成出来的形象带着别人（或者根本不存在的人）的人设。
+ROLE = (_MODEL.identity.get("role") or "").strip()
+POSITIONING = (_MODEL.identity.get("positioning") or "").strip()
+
+# 眼镜：**这个人的事实**，从 `look_spec.glasses` 读。没声明 = 不戴眼镜。
+GLASSES_COLOR = look_spec.glasses_color(_MODEL)
+GLASSES_STYLE = look_spec.glasses_style(_MODEL)
+HAS_GLASSES = look_spec.has_glasses(_MODEL)
 
 CHAR_DIR = aim_paths.character_dir(SLUG)
 # 这个人的素材根（`aim/models/<slug>/assets/`）
@@ -54,15 +63,48 @@ PERSON_ROOT = aim_paths.person_assets_dir(SLUG)
 # 形象原型参考图：使用者的素材，路径写在模型里。**没配 = 不跑这个脚本。**
 SOURCE_IMAGE = _MODEL.asset("source")
 
-GLASSES_PROMPT = f"""眼镜（必须戴）：
-- 戴一副{GLASSES_STYLE}眼镜，镜框颜色深藏蓝 {GLASSES_COLOR}（与马甲同色），框条纤细规整，方形镜片带极小圆角
+
+def _identity_sentence() -> str:
+    """身份那一句——**只写模型里有的**。
+
+    `role` / `positioning` 没写就只写通用的一句，**不拿占位符糊过去**。
+    """
+    bits: list[str] = []
+    if ROLE:
+        bits.append(f"定位是「{ROLE}」")
+    if POSITIONING:
+        bits.append(f"人设是「{POSITIONING}」")
+    tail = ("，" + "、".join(bits)) if bits else ""
+    return f"角色设定：一位拟人化角色「{BRAND_NAME}」{tail}。"
+
+
+def _look_bullets() -> str:
+    """「按形象设定补齐」的那几条——**逐条来自模型**。
+
+    外观散文来自 `look`，耳麦来自 `look_spec.headset`。
+    """
+    return look_spec.appearance_prompt(_MODEL, include_glasses=False)
+
+if HAS_GLASSES:
+    GLASSES_PROMPT = f"""眼镜（必须戴）：
+- 戴一副{GLASSES_STYLE}眼镜，镜框颜色 {GLASSES_COLOR}，框条纤细规整，镜片带极小圆角
 - 镜片完全透明，能清楚看到眼睛，不要镜片反光、不要镜片变色、不要墨镜遮眼
 - 眼镜架在两只眼睛上，佩戴位置与角度自然，镜框总宽度与两只大眼睛的总跨度相称
 - 镜腿从镜框两侧水平伸向两只耳朵"""
+else:
+    # 没声明眼镜 = 这个人不戴眼镜。**prompt 里一个字都不提**——
+    # 提了就是给这个人硬加一副眼镜。
+    GLASSES_PROMPT = ""
+
+#: 设定表那一段的眼镜提醒（只有戴眼镜的人有）。
+GLASSES_POSE_LINE = (
+    "- 六个姿态里的角色全都戴着这副眼镜，佩戴位置与角度各自自然\n"
+    if HAS_GLASSES else ""
+)
 
 CHARACTER_PROMPT = f"""以图1（{LOOK}，坐姿形象）为主体原型，生成一张专业的产品级角色设定图（character turnaround sheet）。
 
-角色设定：一位讲解技术的拟人化角色「{BRAND_NAME}」，定位是「{ROLE}」的技术讲解者。
+{_identity_sentence()}
 
 {persona_prompt()}
 
@@ -71,10 +113,9 @@ CHARACTER_PROMPT = f"""以图1（{LOOK}，坐姿形象）为主体原型，生�
 - 整体为正面坐姿、白色纯净背景
 - 柔和均匀的棚拍打光，无强反光
 
-新增元素（技术博主属性）：
-- 脖子佩戴细黑色头戴式耳机 + 麦克风臂
-- 胸前佩戴深藏蓝色 (#2B4C7E) 技术围裙 / 工装马甲，胸口有一个圆柱形数据库磁盘图标，颜色为琥珀黄 (#F5A623)
-- 马甲上别一块白色小铭牌
+形象按下面这些设定补齐（图1 里没有的部分）：
+{_look_bullets()}
+- 胸前别一块白色小铭牌（保持空白纯白）
 
 {GLASSES_PROMPT}
 
@@ -102,8 +143,11 @@ IMPORTANT — 铭牌上绝对不要有任何文字：胸口那块白色矩形铭
 5. 正面坐姿但头微微低，看向下方（沉思/讲解细节）
 6. 身体略微后仰、双手摊开，表情豁达（收束/总结姿态）
 
+{_look_bullets()}
+- 胸前别一块白色小铭牌（保持空白纯白）
+
 {GLASSES_PROMPT}
-- 六个姿态里的角色全都戴着这副眼镜，佩戴位置与角度各自自然
+{GLASSES_POSE_LINE}
 
 硬性要求：
 - 严格保持图1的角色设定不变：同一个角色、外观与配色一字不改

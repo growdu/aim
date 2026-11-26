@@ -6,8 +6,9 @@
   brand/assets/<slug>_pose_wave_nobg.png         角色 · 挥手姿态（2048²，透明底）
 
 参考图是主形象 `character/<slug>_character_2k.png`（白底），
-prompt 只描述姿态差异，角色设定（浅蓝灰皮肤 / 深藏蓝马甲 / 琥珀黄数据库图标 /
-黑色头戴耳机 / 深藏蓝方形细边框眼镜）原样继承，不重新发明。
+prompt 只描述姿态差异，角色设定**原样继承，不重新发明**——
+角色设定长什么样由模型说了算（`look` 是外观散文，`look_spec` 是
+眼镜、耳麦这些结构化的事实），脚本里不写死任何一个人的样子。
 
 白底主形象是由入库的透明底主形象**合成**出来的，不是重新生成的
 （`scripts/character/make_white.py`）——重新生成会让吉祥物形象漂移，
@@ -35,6 +36,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))          # aim 仓根
+from aimkit import look as look_spec  # noqa: E402  形象规格唯一来源
 from aimkit import model as model_mod  # noqa: E402
 from aimkit import paths as aim_paths  # noqa: E402
 
@@ -42,32 +44,42 @@ CHARACTER_SCRIPTS = aim_paths.SCRIPTS_DIR / "character"
 sys.path.insert(0, str(CHARACTER_SCRIPTS))
 
 from _mcode import call, download, upload          # noqa: E402
-from add_glasses import (GLASSES_COLOR, GLASSES_STYLE, cleanup_glasses)  # noqa: E402
+from add_glasses import cleanup_glasses           # noqa: E402
 from stamp_badge import stamp_badge                # noqa: E402
 
 _MODEL = model_mod.load()
 SLUG = _MODEL.person
 LOOK = _MODEL.look or "3D 卡通风格的拟人化角色"
+HAS_GLASSES = look_spec.has_glasses(_MODEL)
 
 CHARACTER = aim_paths.character_dir(SLUG) / f"{SLUG}_character_2k.png"
 BRAND = aim_paths.brand_dir(SLUG)
 ASSETS = BRAND / "assets"
 
+# 角色设定：**逐条来自模型**。
+#
+# 以前这一段写死了「浅蓝灰皮肤 / 深藏蓝马甲 / 琥珀黄图标 / 黑色耳机 /
+# 深藏蓝方框眼镜」——那是**上一个人的样子**。换人就换不掉：
+# 生成出来的还是别人的角色，而画面照样生成、时长照样对，没有任何报错。
+#
+# 现在：外观散文来自 `look`，耳麦与眼镜来自 `look_spec`，没声明的不写。
 IDENTITY = f"""角色设定与图1逐项保持一致：
-- 同样的浅蓝灰色皮肤、大眼长睫毛、粉色面颊、小巧象牙、头顶一撮呆毛
-- 同样的深藏蓝 (#2B4C7E) 技术工装马甲、胸口同样的琥珀黄 (#F5A623) 圆柱数据库图标
-- 同样的黑色头戴式耳机 + 麦克风臂
-- 同样的{GLASSES_STYLE}眼镜，镜框深藏蓝 {GLASSES_COLOR}（与马甲同色），镜片完全透明
+{look_spec.appearance_prompt(_MODEL)}
 - 同样的产品级 3D 卡通渲染质感、柔和均匀棚拍光、无强反光"""
 
-COMMON_TAIL = """画面要求：
+#: 只有戴眼镜的人，镜框与镜腿上才可能贴着小白牌——那条禁令才有意义。
+GLASSES_CLEAN_LINE = (
+    "- 眼镜的镜框与镜腿上不要贴任何白色标签、铭牌、贴纸或文字\n"
+    if HAS_GLASSES else ""
+)
+
+COMMON_TAIL = f"""画面要求：
 - 纯白背景 (#FFFFFF)，主体居中，四周留出充足白边
-- 马甲**上部**必须有一块**白色矩形铭牌**：横向长方形，约角色一个手掌宽、
-  拇指高，纯白无字，位置在胸口琥珀黄圆柱图标的上方偏右；
+- 胸前**上部**必须有一块**白色矩形铭牌**：横向长方形，约角色一个手掌宽、
+  拇指高，纯白无字，位置在胸口偏右上；
   这块铭牌是品牌标识，**不能省掉**
 - 那块白色矩形铭牌保持**完全空白**，不要写任何文字、字母或符号
-- 眼镜的镜框与镜腿上不要贴任何白色标签、铭牌、贴纸或文字
-- 不要任何文字标签、边框、说明文字
+{GLASSES_CLEAN_LINE}- 不要任何文字标签、边框、说明文字
 - 干净的产品级 3D 卡通渲染质感"""
 
 THUMBSUP_PROMPT = f"""以图1（{LOOK}）为唯一原型，生成这个角色的「点赞」姿态。

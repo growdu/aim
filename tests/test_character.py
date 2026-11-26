@@ -29,16 +29,24 @@ def _generate_character():
                         "aim_script_generate_character")
 
 
-def test_the_glasses_colour_matches_the_spec():
-    """规范里写的镜框色 = 代码里的镜框色。"""
+def test_the_glasses_colour_comes_from_the_model():
+    """镜框色与款式 = **模型里的**那一份。
+
+    规格以前写死在脚本里（`GLASSES_COLOR = "#2B4C7E"`）——换人就换不掉，
+    生成出来的还是上一个人的样子，而画面照样生成、时长照样对。
+
+    规范里的镜框色（**这个人的例子**）也要跟模型一致：
+    规范与模型漂了，下次重生成就会戴错颜色。
+    """
     glasses = _add_glasses()
     spec = spec_text("形象规范.md")
+    declared = (_MODEL.look_spec.get("glasses") or {})
 
-    assert glasses.GLASSES_COLOR == "#2B4C7E"
-    assert glasses.GLASSES_STYLE == "方形细边框"
+    assert glasses.GLASSES_COLOR == declared.get("color")
+    assert glasses.GLASSES_STYLE == declared.get("style")
     assert glasses.GLASSES_COLOR in spec, (
         f"规范里没有镜框色 {glasses.GLASSES_COLOR}——"
-        "规范与代码漂了，下次重生成就会戴错颜色"
+        "规范与模型漂了，下次重生成就会戴错颜色"
     )
     assert glasses.GLASSES_STYLE in spec, (
         f"规范里没有镜框样式「{glasses.GLASSES_STYLE}」"

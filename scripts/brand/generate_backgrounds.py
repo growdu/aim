@@ -2,8 +2,12 @@
 """生成品牌片用的两张 AI 背景底板。
 
 产出：
-  brand/assets/bg_intro.png    AI 背景：深蓝数据中心（16:9）
-  brand/assets/bg_outro.png    AI 背景：蓝调城市天际线（16:9）
+  brand/assets/bg_intro.png    AI 背景：片头（16:9）
+  brand/assets/bg_outro.png    AI 背景：片尾（16:9）
+
+**画什么由模型说了算**：两张背景的生成 prompt 在 `model.json` 的
+`brand.backgrounds` 里（`intro` / `outro`）。写死在这里换人就换不掉——
+生成出来的还是上一个人的片头片尾，而画面照样生成、时长照样对。
 
 **为什么要有这个脚本。** 背景原本是手工生成的：仓库里只有成品，没有生成
 步骤。换一版背景、或者在另一台机器上补一张背景，都只能靠人回忆当时的
@@ -72,42 +76,35 @@ _NO_SPLIT = """- 全幅必须是一个**单一连续空间**：同一片天空/�
 - 画面里没有任何人物、角色、动物、机器人、剪影
 - 画面里没有任何文字、字母、数字、标牌、Logo、水印、UI 面板、图表、代码"""
 
-# 片头：深蓝数据中心。右侧压暗后放白字，所以灯带别铺满全图。
-INTRO_PROMPT = f"""一张深蓝色调的现代超大规模数据中心机房内部。
+# 两张背景的生成 prompt：**这个人的事实**，从 `model.json` 的
+# `brand.backgrounds` 读。
+#
+# 上面那条「不许拼接 / 不许有字」是**框架的规矩**（不是这个人的事实），
+# 所以留在代码里，两张背景共用。
 
-场景：一条机房主走廊向纵深延伸，两侧是整齐排列的深灰色服务器机柜，
-机柜面板的指示灯发出冷蓝色微光，地面是抛光环氧地坪，映出机柜灯带的竖向倒影，
-天花板是整齐排列的线缆桥架，远处尽头有一处柔和的冷白亮光。
-镜头平视，视线沿走廊中心线向深处延伸，形成强烈的单点透视纵深。
 
-{_NO_SPLIT}
+def _background_prompt(which: str) -> str:
+    """取一张背景的生成 prompt。
 
-- 整体偏暗，冷蓝为主调；机柜指示灯是画面里最亮的元素，但不要过曝
-- 构图：地面占下半部，天花板线缆占上部约三分之一，走廊尽头在画面中偏左
-- 画面右侧三分之一（将来压暗后放白色文字）要相对干净、对比度低一些，
-  不要堆满密集灯带
-- 干净、专业、冷峻、电影感的产品级 3D 渲染质感"""
+    **没定就报错**——不拿默认糊过去：没有 prompt 就生成不出那张图，
+    而生成出来的东西长得对不对，只有看图才知道。
+    """
+    text = _MODEL.background_prompt(which)
+    if not text:
+        raise SystemExit(
+            f"模型里没有 {which} 背景的生成 prompt"
+            f"（`brand.backgrounds.{which}` 是空的）——"
+            f"先把它定下来再生成。"
+        )
+    return f"{text}\n\n{_NO_SPLIT}"
 
-# 片尾：蓝调城市天际线。右侧压白后放深蓝字，所以底色要亮、要通透。
-OUTRO_PROMPT = f"""一张蓝调现代城市天际线远景，傍晚时分。
 
-场景：一整片连续的城市天际线，从左到右是同一座城市——远处的高层建筑群、
-中景的办公楼、脚下平铺的城市街区与一条向远处收束的街道。
-天空是清澈的浅蓝到近白的渐变，飘着极淡的云，一轮柔和的日光从画面偏左上方照下来，
-建筑群之间有真实的距离层次与空气透视（越远越淡越蓝）。
-
-{_NO_SPLIT}
-
-- 主色调是浅蓝、天青与近白，通透明亮，不要深色
-- 建筑不要出现密集的窗户网格噪点，形体要简洁干净
-- 构图：地平线压在画面下方约三分之一，天空占据大半幅；右侧靠近地平线的位置
-  建筑群要低一些、亮一些（将来那里要压白后放深蓝色文字）
-- 干净、宁静、专业的产品级 3D 渲染质感"""
-
-BACKGROUNDS = {
-    "intro": (INTRO_PROMPT, ASSETS / "bg_intro.png"),
-    "outro": (OUTRO_PROMPT, ASSETS / "bg_outro.png"),
-}
+def _backgrounds() -> dict:
+    """两张背景的 (prompt, 落盘路径)。"""
+    return {
+        which: (_background_prompt(which), ASSETS / f"bg_{which}.png")
+        for which in ("intro", "outro")
+    }
 
 
 def seam_score(image: Image.Image) -> tuple[float, int]:
@@ -222,8 +219,9 @@ def main(argv: list[str] | None = None) -> int:
         wanted.append("intro")
     if args.outro or not args.intro:
         wanted.append("outro")
+    backgrounds = _backgrounds()
     for name in wanted:
-        prompt, dest = BACKGROUNDS[name]
+        prompt, dest = backgrounds[name]
         print(f"生成 {name} 背景 …")
         generate(prompt, dest)
     print("完成。规范见 video/形象与音色规范.md")

@@ -9,9 +9,12 @@
 **能抹掉，是因为铭牌是脚本印上去的。** `stamp_badge.py` 自动定位铭牌
 （不硬编码坐标），所以这里也能自动找到它、把它抹掉。
 
-**抹法**：刷成**马甲色**。铭牌四周一圈都是深藏蓝的马甲，取那一圈里
-马甲色像素的中值填进铭牌框——视觉上就是「这块儿本来就没有铭牌」。
+**抹法**：刷成**衣服色**。铭牌四周一圈都是衣服，取那一圈里
+衣服色像素的中值填进铭牌框——视觉上就是「这块儿本来就没有铭牌」。
 比刷成纯白好：白色一块反而更显眼（像贴了张便条）。
+
+**衣服色是这个人的事实**（`model.json` 的 `look_spec.vest_color`）——
+以前这里是写死的通道阈值，那是**上一个人的衣服色**，换个颜色就抹不干净。
 
 用法：
     python3 scripts/clear_badge.py                      # 产出默认素材
@@ -27,15 +30,19 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from stamp_badge import find_badge            # noqa: E402
+from stamp_badge import NEAR_WHITE, find_badge, vest_mask  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1]))          # aim 仓根
+from aimkit import look as look_spec  # noqa: E402
 from aimkit import model as model_mod  # noqa: E402
 from aimkit import paths as aim_paths  # noqa: E402
 
-# 角色文件名前缀从模型读（`person`）——脚本里不写死。
-SLUG = model_mod.load().person
+# 角色文件名前缀与衣服色都从模型读——脚本里不写死。
+_MODEL = model_mod.load()
+SLUG = _MODEL.person
 CHAR_DIR = aim_paths.character_dir(SLUG)
+#: 衣服主色。**没声明** = 这个人没有「马甲」这回事 → 走通用路径。
+VEST_RGB = look_spec.vest_rgb(_MODEL)
 
 # 输出文件名：与 `character.STATIC_IMAGE` 同目录，名字带 nobadge。
 OUTPUT_NAME = f"{SLUG}_character_2k_nobg_nobadge.png"
@@ -53,11 +60,20 @@ EXPAND = 3
 FEATHER = 3
 
 
-def _vest_pixels(image: Image.Image) -> np.ndarray:
-    """马甲色（深藏蓝）的像素。"""
+def _garment_pixels(image: Image.Image) -> np.ndarray:
+    """铭牌四周那圈「衣服」的像素。
+
+    声明了衣服色就按**色度**取（渲染的明暗渐变不改变色度，阴影也算）；
+    没声明就走**通用路径**：近白以外的不透明像素（衣服与皮肤）。
+    """
     arr = np.array(image.convert("RGBA"))
     r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
-    return (r < 110) & (g < 140) & (b < 175) & (b > r + 20)
+    alpha = arr[..., 3]
+    if VEST_RGB is not None:
+        return vest_mask(r, g, b, VEST_RGB)
+    near_white = (r > NEAR_WHITE) & (g > NEAR_WHITE) & (b > NEAR_WHITE)
+    opaque = (alpha > 200) if alpha.min() < 250 else np.ones_like(near_white)
+    return (~near_white) & opaque
 
 
 def _column_medians(band: np.ndarray, mask: np.ndarray) -> list:
@@ -164,10 +180,10 @@ def clear_badge(source: str | Path, output: str | Path | None = None) -> Path | 
     height, width = arr.shape[:2]
     ring_box = (max(0, x0 - RING_WIDTH), max(0, y0 - RING_WIDTH),
                 min(width, x1 + RING_WIDTH), min(height, y1 + RING_WIDTH))
-    full_vest = _vest_pixels(image)
+    full_vest = _garment_pixels(image)
     vest_mask = full_vest[ring_box[1]:ring_box[3], ring_box[0]:ring_box[2]]
     if not vest_mask.any():
-        print(f"  - {source.name}：铭牌四周没找到马甲色，不敢抹，跳过")
+        print(f"  - {source.name}：铭牌四周没找到衣服色，不敢抹，跳过")
         return None
 
     # 填进铭牌框，并往外扩 EXPAND 个像素盖掉塑料牌的白边。
@@ -207,7 +223,7 @@ def clear_badge(source: str | Path, output: str | Path | None = None) -> Path | 
 
     out = Path(output) if output else source.with_name(OUTPUT_NAME)
     Image.fromarray(arr, "RGBA").save(out)
-    print(f"  → {out.name}：铭牌 {box} 已抹成马甲色")
+    print(f"  → {out.name}：铭牌 {box} 已抹成衣服色")
     return out
 
 

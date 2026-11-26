@@ -10,7 +10,8 @@
 
 ## 一、本仓库是什么
 
-**人这一侧**：把「这个人是谁」定下来，落成一份 JSON，交给下游去渲染。
+**人这一侧**：把「这个人是谁」定下来，落成一份 JSON（契约），
+再由脚本把它渲染成**这个人的**素材与片子。
 
 ```
 确认流程（音色定标 → 形象确认 → 人格确认 → 品牌片定稿）
@@ -22,10 +23,14 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 下游读它 → 渲染 → 成片
 ```
 
-**下游**：读这份 JSON 去渲染成片。
+**下游**：读这份 JSON（与它指到的素材）去渲染成片。
 **上游**：无。
 
 **缝是文件**：下游读 `model.json`，**不 import 本仓的任何模块**。
+
+**JSON 是索引与参数，不是这个人本身**——人 = 规则（`specs/`）
+× 契约（`model.json`）× 产物（PNG / MP4 / WAV）。见
+[`specs/平台契约.md`](specs/平台契约.md)。
 
 ---
 
@@ -34,17 +39,19 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 | 模块 | 一级目录 | 它拥有 | 验收命令 |
 |------|----------|--------|----------|
 | **模型契约** | `models/` | `model.json`（这个人的唯一契约）、`brand_windows.json` | `python3 -m pytest tests/test_model.py -q` |
-| **可复用件** | `aimkit/` | `model.py`（读模型）、`paths.py`（路径常量）、`fonts.py`（字体解析） | `python3 -m pytest tests/ -q` |
+| **可复用件** | `aimkit/` | `model.py`（读模型）、`look.py`（形象规格与配色）、`paths.py`（路径常量）、`fonts.py`（字体解析） | `python3 -m pytest tests/ -q` |
 | **形象** | `scripts/character/` | 生成主形象、戴眼镜、合成白底 | `python3 -m pytest tests/test_character.py -q` |
 | **形象素材** | `scripts/character/` | 眼镜图与主形象的位置对不对、是不是模型说的那份 | `python3 -m pytest tests/test_character_assets.py tests/test_glasses_assets.py -q` |
 | **铭牌** | `scripts/character/` | 盖铭牌（`stamp_badge.py`）、抹铭牌（`clear_badge.py`）——找铭牌那块白矩形靠 `scipy.ndimage` | `python3 -m pytest tests/test_stamp_badge.py tests/test_clear_badge.py -q` |
 | **品牌片** | `scripts/brand/` | 生成姿态与背景、重排底板文字、渲染片头片尾、配音 | `python3 -m pytest tests/test_brand.py -q` |
 | **品牌片脚本** | `scripts/brand/` | 脚本只引用模型里声明的素材 | `python3 -m pytest tests/test_brand_scripts.py -q` |
 | **音色** | `scripts/voice/` | 量测参照录音、查多音字读音 | `python3 -m pytest tests/test_voice.py -q` |
-| **线内规格** | `specs/` | 形象 / 音色 / 品牌片 / 人格四份规范 | ——（文档） |
+| **体检** | `scripts/doctor.py` | 契约与素材齐不齐（**只报告，不改**） | `python3 scripts/doctor.py` |
+| **线内规格** | `specs/` | 平台契约 / 形象 / 音色 / 品牌片 / 人格五份规范 | ——（文档） |
 | **素材** | `assets/` | 内置字体子集 + 出处台账（**入库**） | `python3 -m pytest tests/test_fonts.py -q` |
 | **素材入库** | `tests/` | 用户素材不入库、内置字体与授权台账要入库 | `python3 -m pytest tests/test_assets_are_tracked.py -q` |
 | **本仓守卫** | `tests/` | 模型形状、字体出处与缺字、眼镜规格、人格、品牌片 | `python3 -m pytest tests/ -q` |
+| **通用性守卫** | `tests/` | 代码里不许写死任何一个人；换一个完全不同的人必须跑得通 | `python3 -m pytest tests/test_no_hardcoded_person.py tests/test_person_swap.py -q` |
 
 **跳过**（AI 不读不改）：`models/*/assets/`（这个人的素材，不入库）、
 `models/*/_staging/`（加眼镜流程的中间产物）、`__pycache__/`、`.pytest_cache/`。
@@ -68,12 +75,19 @@ models/<slug>/model.json          ← 这个人（唯一契约）
   **规则**是框架的，**例子**是这个人的。
 - **身份不在框架里**：人格、音色、形象、站名一律从 `model.json` 读，
   代码里不写死。换人只改模型，不改代码。
+  眼镜规格、衣服色、铭牌字色、耳麦、品牌片背景 prompt、底板配色都在模型里
+  （`look_spec`、`brand.backgrounds` 与 `brand.colors`）。
+- **不拿默认值糊过去**：这个人不戴眼镜（`look_spec.glasses` 没声明），
+  加眼镜流程**整体跳过**；身份没写就**空着**，不编一句占位符。
+  糊过去了，下游就分不清「定错了」和「还没定」。
 - **可空的字段就让它空着**：空 = 「还没定」，不是错误。
 - **契约坏了才是硬错误**：`model.json` 读不了 / 形状不认识 → **报错退出**，
   不降级。素材文件不在 → **降级**，`doctor` 单独报。
 - **文字一律用真实字体渲染**：模型生成的中英文会乱码。
 - **相对路径的基准是 `model.json` 所在目录**——下游不需要知道本仓根在哪。
 - **形状变了就涨 `schema`**：读不懂新形状时**报错退出**，不静默忽略。
+- **不猜用哪个人**：仓里有好几个人时报错列出候选，**绝不猜**
+  （猜错就是拿别人的事实去生成这个人的素材与片子）。
 - **验收按模块拆开**：谁改了什么，只有谁的套件会红。
 
 ### 3.3 禁碰

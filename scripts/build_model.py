@@ -20,14 +20,14 @@
 ## 用法
 
     # 从已有的 model.json 归一化后重写（就地修形状）
-    python3 scripts/build_model.py --person growdu --out models/growdu/model.json
+    python3 scripts/build_model.py --person <slug> --out models/<slug>/model.json
 
     # 从另一份来源生成（--from 缺省就是 --out 本身）
-    python3 scripts/build_model.py --person growdu --from /tmp/draft.json \
-        --out models/growdu/model.json
+    python3 scripts/build_model.py --person <slug> --from /tmp/draft.json \
+        --out models/<slug>/model.json
 
     # 只校验，不写
-    python3 scripts/build_model.py --person growdu --check
+    python3 scripts/build_model.py --person <slug> --check
 """
 from __future__ import annotations
 
@@ -79,6 +79,30 @@ EMPTY_BRAND = {
     "clips": {},
     "audio": {},
     "windows": "",
+    # 品牌片两张背景的**生成 prompt**——这个人的事实。
+    # 空 = 还没定；没定就生成不出那张背景（脚本会报错，不糊过去）。
+    "backgrounds": {
+        "intro": "",
+        "outro": "",
+    },
+    # 品牌片底板的**配色**——这个人的事实。
+    # 空 = 还没定；没定就退回框架的中性色（墨色 / 白）。
+    "colors": {
+        "deep": "",
+        "light": "",
+    },
+}
+
+#: 形象规格的空壳。**值一律是空**——脚本不发明这个人的长相。
+#:
+#: `glasses` 空 = 这个人**不戴眼镜**（加眼镜流程整体跳过）。
+#: `vest_color` 空 = 这个人没有「马甲」这回事，铭牌检测走通用路径。
+EMPTY_LOOK_SPEC = {
+    "glasses": {},
+    "vest_color": "",
+    "badge_icon_color": "",
+    "badge_text_color": "",
+    "headset": "",
 }
 
 
@@ -102,6 +126,10 @@ def normalize(data: dict, person: str) -> dict:
     brand = dict(EMPTY_BRAND)
     brand.update(out.get("brand") or {})
     out["brand"] = brand
+
+    look_spec = dict(EMPTY_LOOK_SPEC)
+    look_spec.update(out.get("look_spec") or {})
+    out["look_spec"] = look_spec
 
     out.setdefault("look", "")
     out.setdefault("persona", "")

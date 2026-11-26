@@ -45,6 +45,7 @@ from PIL import Image
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))          # aim 仓根
 from aimkit import fonts  # noqa: E402
+from aimkit import look as look_spec  # noqa: E402
 from aimkit import model as model_mod  # noqa: E402
 from aimkit import paths as aim_paths  # noqa: E402
 
@@ -83,10 +84,13 @@ INTRO_NARRATION = f"欢迎来到 {BRAND_TOKEN}，{_MODEL.brand.get('tagline', ''
 OUTRO_NARRATION = _MODEL.brand.get("outro_narration", "")
 
 FONT = fonts.font_family()
+
+# 底板上的字色：**这个人的事实**，从 `brand.colors` 读。
+# 白与墨是**框架的中性色**——任何人都能用的纸墨关系，不是谁的事实。
 WHITE = (1.0, 1.0, 1.0)
-AMBER = (245 / 255, 166 / 255, 35 / 255)
-DEEP = (43 / 255, 76 / 255, 126 / 255)
-LIGHT = (214 / 255, 233 / 255, 250 / 255)
+INK = (0.0, 0.0, 0.0)
+DEEP = look_spec.cairo_rgb(_MODEL.brand_colour("deep"), INK)
+LIGHT = look_spec.cairo_rgb(_MODEL.brand_colour("light"), WHITE)
 
 
 # ---------------------------------------------------------------- 工具
