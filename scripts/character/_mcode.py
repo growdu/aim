@@ -36,7 +36,13 @@ def run(cmd: list[str], retries: int = 3, wait: float = 5.0) -> str:
     """
     last = ""
     for attempt in range(retries + 1):
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+        except FileNotFoundError as exc:
+            raise MCodeError(
+                f"命令不存在：{cmd[0]}\n"
+                "mcode-tools CLI 没装——生成类脚本要它（先加载 mcode-tools-master skill）。"
+            ) from exc
         if proc.returncode == 0:
             return proc.stdout
         last = (proc.stderr or proc.stdout or "").strip()[-800:]

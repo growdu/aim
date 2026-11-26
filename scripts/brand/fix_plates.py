@@ -37,6 +37,11 @@ _MODEL = model_mod.load()
 BRAND_NAME = _MODEL.brand.get("name", "")
 BRAND_SITE = _MODEL.brand.get("site", "")
 INTRO_TAGLINE = _MODEL.brand.get("intro_tagline", "")
+BRAND_TAGLINE = _MODEL.brand.get("tagline", "")
+BRAND_SHARE_SUFFIX = _MODEL.brand.get("share_suffix", "")
+BRAND_SHARE_EMPHASIS = _MODEL.brand.get("share_emphasis", "")
+BRAND_OUTRO_SUBTITLE = _MODEL.brand.get("outro_subtitle", "")
+BRAND_OUTRO_LABELS = _MODEL.brand.get("outro_labels", [])
 
 # 底板目录：这个人自己的（`aim/models/<slug>/assets/brand/`）。
 ROOT = str(aim_paths.brand_dir(_MODEL.person))
@@ -380,8 +385,8 @@ def fix_intro(path):
     # 白字 / 金字的**断点由 share_emphasis 给出，别去猜空格**：
     # 这个人的后缀中间没有空格，rpartition(" ") 会断在「·」后面，
     # 画面就变了。
-    g_txt = _CONFIG.brand_share_emphasis
-    w_txt = _CONFIG.brand_tagline + " " + _CONFIG.brand_share_suffix.removesuffix(g_txt)
+    g_txt = BRAND_SHARE_EMPHASIS
+    w_txt = BRAND_TAGLINE + " " + BRAND_SHARE_SUFFIX.removesuffix(g_txt)
     f_cn, size = fit_font(
         CJK_W6[0], CJK_W6[1], w_txt + g_txt, pill[2] - pill[0] - 100, 90
     )
@@ -417,7 +422,7 @@ def fix_outro(path):
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
 
     # 副标题：右对齐到 1860（与标题同一右边界）
-    latin, cjk = _split_subtitle(_CONFIG.brand_outro_subtitle)
+    latin, cjk = _split_subtitle(BRAND_OUTRO_SUBTITLE)
     best = None
     for size in range(84, 30, -1):
         fl, fc = (
@@ -444,7 +449,7 @@ def fix_outro(path):
     icons = ["globe", "play", "thumb"]
     specs = [
         (label, kind, AVENIR_MEDIUM if kind == "globe" else CJK_W6, 0)
-        for label, kind in zip([BRAND_SITE, *_CONFIG.brand_outro_labels], icons)
+        for label, kind in zip([BRAND_SITE, *BRAND_OUTRO_LABELS], icons)
     ]
     f_btn = font(CJK_W6[0], 40, CJK_W6[1])
     f_lat = font(AVENIR_MEDIUM[0], 40, AVENIR_MEDIUM[1])
@@ -479,11 +484,14 @@ def fix_outro(path):
 def main():
     os.makedirs(BACKUP, exist_ok=True)
     for name, fn in (
-        (f"{_CONFIG.character_slug}_intro_1080p.png", fix_intro),
-        (f"{_CONFIG.character_slug}_outro_1080p.png", fix_outro),
+        (f"{_MODEL.person}_intro_1080p.png", fix_intro),
+        (f"{_MODEL.person}_outro_1080p.png", fix_outro),
     ):
         path = os.path.join(PLATES, name)
         bak = os.path.join(BACKUP, name)
+        if not os.path.exists(path) and not os.path.exists(bak):
+            print(f"找不到底板 {path} —— 先渲出底板再修")
+            continue
         if not os.path.exists(bak):
             Image.open(path).convert("RGB").save(bak)
         else:

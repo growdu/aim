@@ -68,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     source = Path(argv[0]) if argv else CHAR_DIR / SOURCE_NAME
     output = Path(argv[1]) if len(argv) > 1 else None
+    if not source.exists():
+        print(f"缺少透明底素材：{source}", file=sys.stderr)
+        print("先跑 scripts/character/generate_character.py 生成主形象。",
+              file=sys.stderr)
+        return 1
     make_white(source, output)
     return 0
 
