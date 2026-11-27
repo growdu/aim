@@ -11,6 +11,10 @@ CLI 那一半就是**仓根的 `./aim`**。
    交付形式名义上在、实际上缺一块。
 2. **命令表里的每一条都指向真实存在的脚本**——指着空气的命令一跑就炸。
 3. **`./aim` 本身会答 `--help`**——门面也得能问。
+
+另加一件（`test_the_entry_point_is_executable`）：
+**`./aim` 得真的敲得动**——文件要有可执行位，而且 git 得记成 100755。
+文档教人敲的是 `./aim`，不是 `python3 aim`。
 """
 from __future__ import annotations
 
@@ -40,6 +44,12 @@ SCRIPTS_UNDER_TEST = sorted(
 
 #: 跑脚本时得指一份模型——脚本在 import 时就读它。
 ENV = {**os.environ, model_mod.MODEL_ENV: str(paths.model_path("growdu"))}
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args], cwd=str(AIM_ROOT), capture_output=True, text=True
+    )
 
 
 @pytest.mark.parametrize("script", SCRIPTS_UNDER_TEST,
@@ -101,6 +111,65 @@ def test_the_entry_point_answers_help():
     # 列出来的命令得跟命令表一样多——少列了就是没真列全
     for command in cli_mod.COMMANDS:
         assert command.path in out, f"用法里少了命令：{command.path}"
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows 没有可执行位这一说，也敲不动无扩展名的脚本",
+)
+def test_the_entry_point_is_executable():
+    """**`./aim` 得真的敲得动。**
+
+    文档教的是 `./aim --help`——**不是** `python3 aim --help`。
+    文件少了可执行位，照文档走的人第一步就卡在
+    `Permission denied`（退 126），而文档一个字都不会提醒他。
+
+    **所以这条守卫不能绕开那一层**：用 `sys.executable` 去调，
+    永远能跑——上一条 `test_the_entry_point_answers_help` 验的是
+    「模块能被调用」，不是「入口能被敲」，**抓不到这个缺陷**。
+    这里要**真的把 `./aim` 执行一遍**。
+    """
+    assert os.access(AIM_CMD, os.X_OK), (
+        f"仓根的 ./aim 没有可执行位——照文档敲会 Permission denied"
+        f"（退 126）：{AIM_CMD}\n"
+        f"修法：chmod +x aim（git 要记成 100755）"
+    )
+
+    try:
+        proc = subprocess.run(
+            [str(AIM_CMD), "--help"],
+            cwd=str(AIM_ROOT), env=ENV, capture_output=True, text=True,
+        )
+    except OSError as exc:
+        pytest.fail(f"直接执行 ./aim 失败了：{exc}")
+
+    assert proc.returncode == 0, (
+        f"直接执行 ./aim --help 退了 {proc.returncode}：\n{proc.stderr}"
+    )
+    assert "用法" in proc.stdout, f"./aim --help 没给用法：\n{proc.stdout}"
+
+
+def test_the_entry_point_is_tracked_as_executable():
+    """**git 得记成 100755。**
+
+    本地 `chmod +x` 是**没用的**——别人 clone 下来还是 644，
+    照文档敲还是 Permission denied。**可执行位要跟着提交走。**
+    """
+    if _git("rev-parse", "--git-dir").returncode != 0:
+        pytest.skip("不在 git 仓库里，跳过")
+
+    result = _git("ls-files", "--stage", "aim")
+    assert result.returncode == 0, f"git 里没有 ./aim：{result.stderr}"
+
+    staged = result.stdout.strip().split()
+    assert staged, f"git ls-files 没给出 ./aim 的记录：{result.stdout!r}"
+    mode = staged[0]
+
+    assert mode == "100755", (
+        f"git 里的 ./aim 是 {mode}，不是 100755——"
+        f"别人 clone 下来没有可执行位，照文档敲会 Permission denied\n"
+        f"修法：git update-index --chmod=+x aim（并提交这个模式变化）"
+    )
 
 
 @pytest.mark.parametrize("command", cli_mod.COMMANDS, ids=lambda c: c.path)
