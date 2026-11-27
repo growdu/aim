@@ -9,31 +9,45 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from aimkit import look
 from aimkit import model as model_mod
 from aimkit import paths as aim_paths
+
 
 _MODEL = model_mod.load()
 SLUG = _MODEL.person
 
-# 镜框色 #2B4C7E = (43, 76, 126)。
-# 判据要卡得够死：角色的**虹膜也是蓝色**（约 #4A8FC0）、耳朵内壁与阴影是
-# 蓝灰色。只按「暗 + 偏蓝」去筛，虹膜和阴影会混进来，测不出眼镜。
-# 所以用「够暗 + 蓝红差够大」：虹膜亮、蓝红差也没这么大；阴影则是灰的，
-# 蓝红差不够。
-NAVY_MAX_RED = 95           # 镜框最亮处也不超过这个红通道
-NAVY_MIN_BLUE_GAP = 70      # 蓝通道要比红通道高这么多，才算深藏蓝而不是灰
+#: 镜框色**从模型来**：`look_spec.glasses.color`——
+#: 换个人换颜色，这里不用改。
+FRAME_RGB = look.hex_to_rgb(
+    ((_MODEL.look_spec.get("glasses") or {}).get("color") or ""))
 
-# 眼镜判据的两个数（**实测标定**，不是拍脑袋）：
-#
-# · **列跨度**：脸区里深藏蓝像素的最左列到最右列，占主体宽的比例。
-#   实测三张素材：主形象 61.0%、点赞姿态 56.8%、挥手姿态 54.0%。
-#   40% 是安全门槛——没有眼镜时脸区里根本没有深藏蓝（眉毛是深棕，
-#   不是深藏蓝；耳机是纯黑，蓝红差为 0），跨度会塌到 0。
-#
-# · **像素占比**：脸区里深藏蓝像素占脸区面积的比。实测 0.96% ~ 2.3%，
-#   0.5% 是安全门槛——它保证镜框**有厚度**，不是一根线。
-MIN_NAVY_SPAN_RATIO = 0.40
-MIN_NAVY_AREA_RATIO = 0.005
+#: **色度**容差：颜色归一化后的比例差在它之内，就算镜框色。
+#:
+#: **为什么比色度，不比绝对通道值。** 渲染的明暗渐变、高光、阴影
+#: **不改变色度**，但**绝对通道值**量到的是打光。实测同一副眼镜的三次渲染：
+#:
+#: | 判据 | 主形象 | 点赞姿态 | 挥手姿态 |
+#: | --- | --- | --- | --- |
+#: | 绝对通道（老判据） | 4.29% | **0.39%** | 3.14% |
+#: | 色度（现在） | 2.35% | 2.09% | 2.23% |
+#:
+#: 同一副眼镜被量成差 11 倍的两个数——打光把镜框洗淡一点，
+#: 老判据就把**真眼镜判成没戴**（实测点赞姿态就是这么红的）。
+#: 色度判据差 1.1 倍，量的是**颜色**不是光。
+CHROMA_TOL = 0.18
+
+#: 眼镜判据的两个数（**实测标定**，不是拍脑袋）：
+#:
+#: · **列跨度**：脸区里镜框色像素的最左列到最右列，占主体宽的比例。
+#:   实测三张素材：主形象 63.7%、点赞姿态 60.4%、挥手姿态 60.7%。
+#:   40% 是安全门槛——它卡在「有眼镜」（≥60%）与「没有眼镜」之间：
+#:   实测抹掉镜框后跨度塌到 0；只留两只眼睛（虹膜也是蓝的）时是 27%~29%。
+#:
+#: · **像素占比**：脸区里镜框色像素占脸区面积的比。实测 2.09% ~ 2.35%，
+#:   0.5% 是安全门槛——它保证镜框**有厚度**，不是一根线。
+MIN_FRAME_SPAN_RATIO = 0.40
+MIN_FRAME_AREA_RATIO = 0.005
 
 
 def _subject_box(rgb: np.ndarray, alpha: np.ndarray | None):
@@ -49,11 +63,19 @@ def _subject_box(rgb: np.ndarray, alpha: np.ndarray | None):
     return int(cols[0]), int(rows[0]), int(cols[-1]) + 1, int(rows[-1]) + 1
 
 
-def _navy(rgb: np.ndarray) -> np.ndarray:
-    """深藏蓝镜框的像素。"""
-    r = rgb[..., 0].astype(int)
-    b = rgb[..., 2].astype(int)
-    return (r < NAVY_MAX_RED) & ((b - r) >= NAVY_MIN_BLUE_GAP)
+def _frame(rgb: np.ndarray) -> np.ndarray:
+    """镜框色的像素——按**色度**判。
+
+    角色的**虹膜也是蓝色**、耳朵内壁与阴影是蓝灰色，所以判据要卡得准：
+    只按「暗 + 偏蓝」去筛，虹膜和阴影会混进来。按**色度**（归一化后的
+    通道比例）去筛就没这个问题——镜框的色度与虹膜、皮肤差得开，
+    而明暗打光改不动色度。
+    """
+    m = np.maximum(rgb.max(axis=2), 1).astype(np.float64)
+    chroma = rgb.astype(np.float64) / m[..., None]
+    target = np.array(FRAME_RGB, dtype=np.float64)
+    target = target / target.max()
+    return np.max(np.abs(chroma - target), axis=2) <= CHROMA_TOL
 
 
 def _face_band(box, height: int):
@@ -67,7 +89,7 @@ def _face_band(box, height: int):
 
 
 def _glasses_measure(rgb: np.ndarray, alpha: np.ndarray | None):
-    """量脸区里的深藏蓝：返回 (列跨度, 像素数, 脸区面积, 主体宽)。
+    """量脸区里的镜框色：返回 (列跨度, 像素数, 脸区面积, 主体宽)。
 
     **为什么用「列跨度」而不是「最长水平段」。** 早先的判据是「镜框是
     横着走的长条」，量的是**最长水平连续段**。那只在头是正的时候成立：
@@ -84,7 +106,7 @@ def _glasses_measure(rgb: np.ndarray, alpha: np.ndarray | None):
     subject_h = y1 - y0
     subject_w = x1 - x0
     top, bottom = _face_band(box, subject_h)
-    band = _navy(rgb)[top:bottom]
+    band = _frame(rgb)[top:bottom]
     columns = np.flatnonzero(band.any(axis=0))
     span = int(columns[-1] - columns[0] + 1) if columns.size else 0
     return span, int(band.sum()), int(band.size), subject_w
@@ -96,32 +118,34 @@ def _glasses_measure(rgb: np.ndarray, alpha: np.ndarray | None):
     "brand/{slug}_pose_wave_nobg.png",
 ])
 def test_real_assets_wear_navy_square_glasses(relative):
-    """本机素材：角色脸上得有深藏蓝的方框眼镜。
+    """本机素材：角色脸上得有那副方框眼镜。
 
-    判据是脸区里的**深藏蓝掩膜**：
-    - **列跨度**要够宽——镜框横跨两只眼睛（实测 54%~61% 主体宽）；
+    判据是脸区里的**镜框色掩膜**（色度取自 `look_spec.glasses.color`）：
+    - **列跨度**要够宽——镜框横跨两只眼睛（实测 60%~64% 主体宽）；
     - **像素占比**要够多——镜框有厚度，不是一根线。
 
-    眉毛不进这道掩膜（深棕，蓝红差不够），耳机也不进（纯黑，蓝红差为 0），
-    所以脸区里的深藏蓝就是镜框本身。
+    眉毛不进这道掩膜（深棕，色度差得开），耳机也不进（纯黑，色度差为 0），
+    所以脸区里的镜框色就是镜框本身。
     """
     from PIL import Image
 
     path = aim_paths.person_assets_dir(SLUG) / relative.format(slug=SLUG)
     if not path.exists():
         pytest.skip("素材不在本机，跳过")
+    if FRAME_RGB is None:
+        pytest.skip("这个人没声明眼镜，跳过")
 
     image = Image.open(path).convert("RGBA")
     arr = np.array(image)
     span, pixels, area, subject_w = _glasses_measure(arr[..., :3], arr[..., 3])
 
-    assert span > 0, f"{relative}：脸区里没有深藏蓝像素，眼镜没戴上"
-    assert span >= subject_w * MIN_NAVY_SPAN_RATIO, (
-        f"{relative}：脸区的深藏蓝只横跨 {span}px（主体宽 {subject_w}px，"
-        f"不到 {MIN_NAVY_SPAN_RATIO:.0%}）——不像横跨两只眼睛的镜框"
+    assert span > 0, f"{relative}：脸区里没有镜框色像素，眼镜没戴上"
+    assert span >= subject_w * MIN_FRAME_SPAN_RATIO, (
+        f"{relative}：脸区的镜框色只横跨 {span}px（主体宽 {subject_w}px，"
+        f"不到 {MIN_FRAME_SPAN_RATIO:.0%}）——不像横跨两只眼睛的镜框"
     )
-    assert pixels >= area * MIN_NAVY_AREA_RATIO, (
-        f"{relative}：脸区深藏蓝只有 {pixels}px（占脸区 {pixels / area:.2%}），"
+    assert pixels >= area * MIN_FRAME_AREA_RATIO, (
+        f"{relative}：脸区镜框色只有 {pixels}px（占脸区 {pixels / area:.2%}），"
         f"不像有厚度的镜框"
     )
 
@@ -141,7 +165,7 @@ def test_the_glasses_judgement_fails_when_the_frames_are_removed():
     rgb = arr[..., :3]
     alpha = arr[..., 3]
     span, pixels, area, subject_w = _glasses_measure(rgb, alpha)
-    assert span >= subject_w * MIN_NAVY_SPAN_RATIO, "原图就没通过，注入没意义"
+    assert span >= subject_w * MIN_FRAME_SPAN_RATIO, "原图就没通过，注入没意义"
 
     # 把镜框连同它的抗锯齿边缘一起抹成皮肤色
     from scipy import ndimage
@@ -149,12 +173,12 @@ def test_the_glasses_judgement_fails_when_the_frames_are_removed():
     box = _subject_box(rgb, alpha)
     top, bottom = _face_band(box, box[3] - box[1])
     frame = np.zeros(rgb.shape[:2], dtype=bool)
-    frame[top:bottom] = _navy(rgb)[top:bottom]
+    frame[top:bottom] = _frame(rgb)[top:bottom]
     frame = ndimage.binary_dilation(frame, np.ones((7, 7)))
     stripped = rgb.copy()
     stripped[frame] = (176, 196, 210)      # 角色皮肤的浅蓝灰
 
     new_span, new_pixels, _, _ = _glasses_measure(stripped, alpha)
-    assert new_span < subject_w * MIN_NAVY_SPAN_RATIO, (
+    assert new_span < subject_w * MIN_FRAME_SPAN_RATIO, (
         f"抹掉镜框后判据仍然通过（跨度 {new_span}px）——它量的不是眼镜"
     )
