@@ -15,7 +15,7 @@ import pytest
 from aimkit import model as model_mod
 from aimkit import paths as aim_paths
 
-from _scripts import load_script
+from _scripts import load_script, real_asset_paths
 
 _MODEL = model_mod.load()
 SLUG = _MODEL.person
@@ -113,18 +113,13 @@ def test_a_narrow_ring_would_miss_the_plate_rim(monkeypatch):
         "环宽 4px 竟然找到了带描边的铭牌——注入没生效，守卫可能是瞎的"
 
 
-@pytest.mark.parametrize("relative", [
-    "character/{slug}_character_2k_nobg.png",
-    "brand/{slug}_pose_thumbsup_nobg.png",
-    "brand/{slug}_pose_wave_nobg.png",
-])
-def test_the_real_assets_still_have_a_findable_badge(relative):
+@pytest.mark.parametrize("path", real_asset_paths(SLUG), ids=lambda p: p.name)
+def test_the_real_assets_still_have_a_findable_badge(path):
     """本机素材的铭牌必须找得到——找得到才盖得上字。"""
     from PIL import Image
 
-    path = aim_paths.person_assets_dir(SLUG) / relative.format(slug=SLUG)
     if not path.exists():
         pytest.skip("素材不在本机，跳过")
     stamp = load_script("character/stamp_badge.py")
     assert stamp.find_badge(Image.open(path).convert("RGBA")) is not None, \
-        f"{relative}：找不到铭牌，字盖不上"
+        f"{path.name}：找不到铭牌，字盖不上"

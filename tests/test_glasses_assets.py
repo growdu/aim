@@ -13,6 +13,7 @@ from aimkit import look
 from aimkit import model as model_mod
 from aimkit import paths as aim_paths
 
+from _scripts import real_asset_paths
 
 _MODEL = model_mod.load()
 SLUG = _MODEL.person
@@ -112,12 +113,8 @@ def _glasses_measure(rgb: np.ndarray, alpha: np.ndarray | None):
     return span, int(band.sum()), int(band.size), subject_w
 
 
-@pytest.mark.parametrize("relative", [
-    "character/{slug}_character_2k_nobg.png",
-    "brand/{slug}_pose_thumbsup_nobg.png",
-    "brand/{slug}_pose_wave_nobg.png",
-])
-def test_real_assets_wear_navy_square_glasses(relative):
+@pytest.mark.parametrize("path", real_asset_paths(SLUG), ids=lambda p: p.name)
+def test_real_assets_wear_navy_square_glasses(path):
     """本机素材：角色脸上得有那副方框眼镜。
 
     判据是脸区里的**镜框色掩膜**（色度取自 `look_spec.glasses.color`）：
@@ -129,7 +126,6 @@ def test_real_assets_wear_navy_square_glasses(relative):
     """
     from PIL import Image
 
-    path = aim_paths.person_assets_dir(SLUG) / relative.format(slug=SLUG)
     if not path.exists():
         pytest.skip("素材不在本机，跳过")
     if FRAME_RGB is None:
@@ -139,13 +135,13 @@ def test_real_assets_wear_navy_square_glasses(relative):
     arr = np.array(image)
     span, pixels, area, subject_w = _glasses_measure(arr[..., :3], arr[..., 3])
 
-    assert span > 0, f"{relative}：脸区里没有镜框色像素，眼镜没戴上"
+    assert span > 0, f"{path.name}：脸区里没有镜框色像素，眼镜没戴上"
     assert span >= subject_w * MIN_FRAME_SPAN_RATIO, (
-        f"{relative}：脸区的镜框色只横跨 {span}px（主体宽 {subject_w}px，"
+        f"{path.name}：脸区的镜框色只横跨 {span}px（主体宽 {subject_w}px，"
         f"不到 {MIN_FRAME_SPAN_RATIO:.0%}）——不像横跨两只眼睛的镜框"
     )
     assert pixels >= area * MIN_FRAME_AREA_RATIO, (
-        f"{relative}：脸区镜框色只有 {pixels}px（占脸区 {pixels / area:.2%}），"
+        f"{path.name}：脸区镜框色只有 {pixels}px（占脸区 {pixels / area:.2%}），"
         f"不像有厚度的镜框"
     )
 

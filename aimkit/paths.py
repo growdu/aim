@@ -58,6 +58,17 @@ def brand_dir(slug: str) -> Path:
     return person_assets_dir(slug) / "brand"
 
 
+def brand_assets_dir(slug: str) -> Path:
+    """某个人的品牌片**图片素材**（背景、姿态）——**不入库**。
+
+    这一层以前没有出处：品牌片的四个脚本各自拼 `brand_dir(slug) / "assets"`，
+    而 `stamp_badge.py` 与三个测试文件拼的是 `brand_dir(slug)`——
+    **少了一层**，于是姿态素材的断言永远在找不存在的路径、永远 skip，
+    那些用例等于没写。路径从这儿出，谁都别再自己拼。
+    """
+    return brand_dir(slug) / "assets"
+
+
 def samples_dir(slug: str) -> Path:
     """某个人的样例视频（**不入库**，由使用者自己保存）。"""
     return person_assets_dir(slug) / "samples"

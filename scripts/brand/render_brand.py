@@ -58,7 +58,7 @@ BRAND_SITE = _MODEL.brand.get("site", "")
 SLUG = _MODEL.person
 
 BRAND = aim_paths.brand_dir(SLUG)
-ASSETS = BRAND / "assets"
+ASSETS = aim_paths.brand_assets_dir(SLUG)
 CLIPS = BRAND / "clips"
 
 W, H = 1920, 1080
@@ -388,17 +388,28 @@ def stamp_badge(char_path: Path) -> None:
     """给胸口铭牌印上品牌词（真实字体渲染）。
 
     铭牌是品牌标识，必须显示品牌词；但文字不能交给模型生成——模型的中英文
-    会乱码。所以合成前统一盖一次章：刷白铭牌，再用 PingFang SC 写上品牌词。
+    会乱码。所以合成前统一盖一次章：刷白铭牌，再用真实字体写上品牌词。
     幂等：已经盖过章再盖一次结果完全一致。
+
+    **盖不上就报错**：片头片尾是从这张图渲出来的，胸口没有品牌词的片子
+    就是没有品牌的片子——不能一声不吭地渲一部出来。
     """
     script = aim_paths.SCRIPTS_DIR / "character" / "stamp_badge.py"
     if not script.exists():
-        print(f"  - 找不到铭牌盖章脚本 {script}，跳过", file=sys.stderr)
-        return
-    subprocess.run(
+        raise RuntimeError(f"找不到铭牌盖章脚本 {script}")
+    # 不用 check=True：那会抛一个看不出所以然的 CalledProcessError。
+    # 自己看退出码，才能把「为什么」说清楚。
+    proc = subprocess.run(
         [sys.executable, str(script), str(char_path)],
-        check=True, cwd=str(script.parent),
+        cwd=str(script.parent),
     )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"{char_path.name}：胸口没有铭牌，品牌词盖不上——"
+            f"这片子渲出来没有品牌词，不渲。"
+            f"把产出它的那一步重做："
+            f"./aim assets build --from \"brand poses\""
+        )
 
 
 def verify_frames(path: Path, expected: int) -> None:
@@ -419,12 +430,21 @@ def verify_frames(path: Path, expected: int) -> None:
         )
 
 
+def stamped_char(path: Path) -> Image.Image:
+    """读入角色图，**顺手把铭牌盖上**。
+
+    **盖不上就报错**——`stamp_badge` 自己就报（它看的是盖章脚本的退出码），
+    这里只管把图读进来。
+    """
+    stamp_badge(path)
+    return Image.open(path).convert("RGBA")
+
+
 def render(which: str, bg_path: Path, char_path: Path, out_path: Path,
            audio_path: Path | None) -> None:
     bg = Image.open(bg_path).convert("RGBA")
     # 铭牌盖章要在把形象读进 cairo 之前
-    stamp_badge(char_path)
-    char_img = Image.open(char_path).convert("RGBA")
+    char_img = stamped_char(char_path)
     # 脚底在素材画布中的相对位置（透明留白不算），决定接地阴影落在哪
     foot_ratio = subject_bbox(char_img)[3] / char_img.height
     char = pil_to_cairo(char_img)
@@ -503,7 +523,11 @@ def main() -> int:
                 print(f"缺少素材：{p}", file=sys.stderr)
                 return 1
         print(f"渲染 {which} …")
-        render(which, bg, char, out, audio if audio.exists() else None)
+        try:
+            render(which, bg, char, out, audio if audio.exists() else None)
+        except RuntimeError as exc:
+            print(f"{which} 没渲成：{exc}", file=sys.stderr)
+            return 1
     return 0
 
 

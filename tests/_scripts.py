@@ -13,9 +13,26 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from aimkit import paths as aim_paths
+
 AIM_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = AIM_ROOT / "scripts"
 SPECS_DIR = AIM_ROOT / "specs"
+
+
+def real_asset_paths(slug: str) -> tuple[Path, ...]:
+    """本机真实素材的三个位置——**路径从 `aimkit.paths` 出**。
+
+    以前三个测试文件各自拼 `person_assets_dir(slug) / "brand/..."`，
+    而品牌片的脚本把素材放在 `brand/assets/` 下——**少了一层**。
+    于是这些用例永远在找一条不存在的路径、永远 skip，
+    等于写了但从没跑过。路径从这儿出，谁都别自己拼。
+    """
+    return (
+        aim_paths.character_dir(slug) / f"{slug}_character_2k_nobg.png",
+        aim_paths.brand_assets_dir(slug) / f"{slug}_pose_thumbsup_nobg.png",
+        aim_paths.brand_assets_dir(slug) / f"{slug}_pose_wave_nobg.png",
+    )
 
 
 def load_script(relative: str, name: str | None = None):

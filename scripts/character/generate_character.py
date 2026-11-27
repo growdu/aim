@@ -213,8 +213,18 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  → {(CHAR_DIR / f'{SLUG}_pose_sheet.png').relative_to(PERSON_ROOT)}")
 
     print("给铭牌印上品牌词（真实字体渲染）…")
+    missing = []
     for target in (main_png, CHAR_DIR / f"{SLUG}_character_2k_nobg.png"):
-        stamp_badge(target)
+        if stamp_badge(target) is None:
+            missing.append(target)
+    if missing:
+        # **不许一声不吭地跳过**：铭牌上必须有品牌词，这是硬要求。
+        # 盖不上就是模型这批没在胸口画那块白色铭牌——把这一步重做就好。
+        print("模型这批没在胸口画白色铭牌，盖不上品牌词："
+              + "、".join(p.name for p in missing), file=sys.stderr)
+        print("把这一步重做：./aim assets build --from \"character generate\"",
+              file=sys.stderr)
+        return 1
 
     print("完成。规范见 specs/形象规范.md")
     return 0

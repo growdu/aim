@@ -13,7 +13,7 @@ import pytest
 from aimkit import model as model_mod
 from aimkit import paths as aim_paths
 
-from _scripts import load_script
+from _scripts import load_script, real_asset_paths
 
 _MODEL = model_mod.load()
 #: 铭牌上该写的词（模型的 `brand.token`）
@@ -434,15 +434,10 @@ def test_stamp_leaves_the_rest_of_the_image_untouched(tmp_path):
     assert np.array_equal(before[mask], after[mask]), "铭牌以外被改动了"
 
 
-@pytest.mark.parametrize("relative", [
-    "character/{slug}_character_2k_nobg.png",
-    "brand/{slug}_pose_thumbsup_nobg.png",
-    "brand/{slug}_pose_wave_nobg.png",
-])
-def test_real_assets_carry_the_brand_word_on_the_badge(relative):
+@pytest.mark.parametrize("path", real_asset_paths(SLUG), ids=lambda p: p.name)
+def test_real_assets_carry_the_brand_word_on_the_badge(path):
     """本机素材：铭牌上必须真的有那个品牌词。"""
     module = _module()
-    path = aim_paths.person_assets_dir(SLUG) / relative.format(slug=SLUG)
     if not path.exists():
         pytest.skip("素材不在本机，跳过")
 
@@ -450,8 +445,56 @@ def test_real_assets_carry_the_brand_word_on_the_badge(relative):
 
     image = Image.open(path).convert("RGBA")
     box = module.find_badge(image)
-    assert box is not None, f"{relative}：没找到铭牌"
+    assert box is not None, f"{path.name}：没找到铭牌"
     x0, y0, x1, y1 = box
     region = np.array(image)[y0:y1, x0:x1, :3]
     ink = _ink(region)
-    assert ink.sum() > 0, f"{relative}：铭牌上没有文字"
+    assert ink.sum() > 0, f"{path.name}：铭牌上没有文字"
+
+
+# ---- 只查不改：--check ----------------------------------------------------
+
+
+def test_the_check_mode_reports_a_missing_badge(tmp_path):
+    """`--check` 只查不改：图上没有铭牌就退 1。
+
+    **为什么要有这个模式**：链要判断「产物合不合格」，而「合格」的
+    标准不只是文件在——**胸口得有品牌词**。模型有的时候不画那块
+    白色铭牌（实测 2026-11-27 那批两个姿态都没画），那种图渲出来
+    的片子没有品牌词。以前这一步是**静默跳过**的：脚本打印一句
+    「没找到铭牌，跳过」，链照样往下走，片子照样渲出来。
+    """
+    module = _module()
+    from PIL import Image
+
+    path = tmp_path / "nobadge.png"
+    Image.new("RGBA", (256, 256), (12, 24, 48, 255)).save(path)
+
+    assert module.check_badge(path) is False, "没铭牌的图被说成有铭牌"
+    assert module.main(["--check", str(path)]) == 1, \
+        "--check 遇到没铭牌的图没有退 1——链会拿它当合格素材"
+
+
+def test_the_check_mode_passes_a_real_asset():
+    """本机素材带铭牌时，`--check` 得放行。"""
+    module = _module()
+
+    for path in real_asset_paths(SLUG):
+        if not path.exists():
+            continue
+        assert module.check_badge(path), \
+            f"{path.name}：明明有铭牌，check_badge 却说没有"
+        assert module.main(["--check", str(path)]) == 0, \
+            f"{path.name}：有铭牌，--check 却退了非 0"
+
+
+def test_the_stamp_step_fails_when_a_badge_cannot_be_stamped(tmp_path):
+    """盖章这一步**盖不上要退非 0**——不许一声不吭地跳过。"""
+    module = _module()
+    from PIL import Image
+
+    path = tmp_path / "nobadge.png"
+    Image.new("RGBA", (256, 256), (12, 24, 48, 255)).save(path)
+
+    assert module.main([str(path)]) == 1, \
+        "盖不上铭牌却退了 0——链会以为这一步做过了"

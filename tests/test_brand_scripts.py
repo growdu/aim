@@ -174,3 +174,64 @@ def test_the_shipped_windows_connect():
         f"片尾结束在 {outro_start + duration:.3f}s，片头起于 {intro_start:.3f}s——"
         f"没有相接"
     )
+
+
+# ---------------------------------------------------------------- 铭牌
+
+def test_a_pose_without_the_badge_is_discarded(tmp_path):
+    """模型没画铭牌 → 这张图**不许留在产物里**。
+
+    留着的话，素材回路按「产物齐全」跳过耗额度的步骤，这张没铭牌的图
+    就一路流到品牌片里去，渲出一部没有品牌词的片子——而没有任何人
+    收到过一句提醒。**要么它带品牌词，要么它压根不存在。**
+    """
+    poses = load_script("brand/generate_poses.py", "aim_script_generate_poses")
+    from PIL import Image
+
+    path = tmp_path / "pose.png"
+    Image.new("RGBA", (256, 256), (12, 24, 48, 255)).save(path)
+
+    assert poses.stamp_or_discard(path) is False, \
+        "盖不上铭牌却当成了成功"
+    assert not path.exists(), \
+        "没铭牌的图还留在产物里——链会拿它当合格素材"
+
+
+def test_the_render_refuses_a_pose_without_the_badge(tmp_path):
+    """渲片之前必须确认铭牌盖上了。
+
+    片子是从这张图渲出来的：胸口没有品牌词的片子就是没有品牌的片子，
+    不能一声不吭地渲一部出来。
+    """
+    render = load_script("brand/render_brand.py", "aim_script_render_brand")
+    from PIL import Image
+
+    path = tmp_path / "pose.png"
+    Image.new("RGBA", (256, 256), (12, 24, 48, 255)).save(path)
+
+    with pytest.raises(RuntimeError):
+        render.stamped_char(path)
+
+
+def test_the_brand_scripts_take_the_asset_dir_from_paths():
+    """品牌片脚本的素材目录**只能**从 `aimkit.paths` 拿。
+
+    以前四个脚本各自拼 `brand_dir(slug) / "assets"`，而 `stamp_badge.py`
+    拼的是 `brand_dir(slug)`——**少一层**。于是测试验的位置跟脚本写的
+    位置对不上，姿态素材的断言永远 skip，等于没写。
+    """
+    for name in ("generate_poses.py", "generate_backgrounds.py",
+                 "render_brand.py"):
+        source = (BRAND_SCRIPTS / name).read_text(encoding="utf-8")
+        assert "brand_assets_dir" in source, (
+            f"{name}：素材目录要从 aim_paths.brand_assets_dir 拿"
+        )
+        assert 'BRAND / "assets"' not in source, (
+            f"{name}：自己拼了 BRAND / \"assets\"——路径的唯一出处是 paths.py"
+        )
+
+    source = (aim_paths.SCRIPTS_DIR / "character" / "stamp_badge.py") \
+        .read_text(encoding="utf-8")
+    assert "brand_assets_dir" in source, (
+        "stamp_badge.py：素材目录要从 aim_paths.brand_assets_dir 拿"
+    )

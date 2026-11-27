@@ -60,7 +60,7 @@ from _mcode import call, download, upload  # noqa: E402
 
 _MODEL = model_mod.load()
 BRAND = aim_paths.brand_dir(_MODEL.person)
-ASSETS = BRAND / "assets"
+ASSETS = aim_paths.brand_assets_dir(_MODEL.person)
 
 # 生成参数。4K 是为了在 draw_cover 的推近镜头下不糊：
 # 画布 1920×1080，推到 1.07 倍时实际取样约 2054×1160。

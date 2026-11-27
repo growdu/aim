@@ -214,9 +214,18 @@ def test_the_metadata_carries_no_media_files():
 
 
 def test_the_model_directory_holds_no_media():
-    """模型目录里不该出现媒体文件——素材在 `assets/`（不入库）。"""
+    """模型目录**这一层**不该出现媒体文件——素材在 `assets/` 底下（不入库）。
+
+    **只查这一层，不递归 `assets/`**：素材本来就住在
+    `models/<slug>/assets/` 下（契约里写的正是那个相对路径，
+    见 `paths.person_assets_dir`），递归进去等于把「素材在哪」判成错。
+
+    以前这条一直绿，是因为 `models/<slug>/assets/` **压根不存在**——
+    本机没生成过素材。`./aim assets build` 跑过一次之后，
+    素材到位，这条就按字面意思炸了。
+    """
     media = {".png", ".jpg", ".jpeg", ".mp4", ".wav", ".mp3"}
-    for path in FIXTURE.parent.rglob("*"):
+    for path in FIXTURE.parent.iterdir():
         if path.is_file():
             assert path.suffix.lower() not in media, f"模型目录里不该有媒体：{path}"
 

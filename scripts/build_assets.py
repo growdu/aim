@@ -42,13 +42,22 @@ from aimkit import fonts  # noqa: E402
 from aimkit import model as model_mod  # noqa: E402
 from aimkit import paths as aim_paths  # noqa: E402
 
+#: 验「这张图带不带品牌词」用的脚本（相对仓根）。
+BADGE_CHECK_SCRIPT = "scripts/character/stamp_badge.py"
+
 
 @dataclass(frozen=True)
 class Step:
     """一步。
 
-    `outputs` 是**这一步的产出**（相对 `models/<slug>/`）——
+    `outputs` 是**这一步的产出**（相对 `models/<slug>/assets/`）——
     产出齐全就说明这一步做过了。
+
+    `needs_badge` 是**必须带品牌词的那几件产出**（也是相对
+    `models/<slug>/assets/`）。文件在**不等于**这步做过了：模型有的时候
+    不画胸口那块白色铭牌（实测 2026-11-27 那批两个姿态都没画），
+    那种图拿去渲品牌片，片子就没有品牌词。所以「做完了」的判据是
+    **产出齐全且带品牌词**——少了品牌词就重做这一步。
 
     `costly` = 联网且**消耗生成额度**。只有这类步骤会因「产物齐全」被跳过：
     本地步骤快且确定，每次都跑（改的往往就是它们）。
@@ -59,9 +68,10 @@ class Step:
 
     name: str                      # CLI 上的路径，如 "brand render"
     script: str                    # 相对仓根的脚本路径
-    outputs: tuple[str, ...] = ()  # 产出（相对 models/<slug>/，`{slug}` 会被替换）
+    outputs: tuple[str, ...] = ()  # 产出（相对 models/<slug>/assets/，`{slug}` 会被替换）
     costly: bool = False           # 联网耗额度？
-    needs: tuple[str, ...] = ()    # 软缺（相对 models/<slug>/）
+    needs: tuple[str, ...] = ()    # 软缺（相对 models/<slug>/assets/）
+    needs_badge: tuple[str, ...] = ()  # 必须带品牌词的产出（同一基准）
 
 
 #: 步骤表。**顺序就是依赖顺序**，别随手调。
@@ -73,9 +83,16 @@ class Step:
 #: 2. **没有 `character glasses`**——`generate_character.py` 与
 #:    `generate_poses.py` 的 prompt 已经带眼镜；`add_glasses.py` 是给**旧素材**
 #:    补眼镜的另一条路，带人工关卡（staging → 目视验收 → promote）。
-#: 3. **没有 `character badge`**——`generate_character.py` 生成后**自己就盖章了**
-#:    （见它的最后一段）。再单独盖一次是在已盖字的白块上盖第二次，
-#:    铭牌检测靠白块连通域，第二次可能定位不准。
+#: 3. **`character badge` 排在 `brand poses` 之后**——盖章要把**这个人的
+#:    全部素材**盖一遍，姿态图是 `brand poses` 才生成的；排在它前面，
+#:    姿态图压根还不存在，那一步永远盖不到它。
+#:
+#: 盖章这一步**看着多余**（`generate_character.py` 与 `generate_poses.py`
+#: 生成后自己就盖了），但它保的是两件事：`generate` 被跳过时
+#: （比如素材已经在了），品牌词照样是最新的；改了 `brand.token`
+#: 再跑一遍，章会跟着改。
+#: **盖章是幂等的**——实测盖两次字节完全一样（`tests/test_stamp_badge.py`
+#: 的 `test_stamp_is_idempotent` 也盯着这条）。
 #:
 #: `brand fix-plates` 留着：它修的是**底板 PNG**，而底板在两条线上都已经
 #: 没有生产者了（只有消费者），所以这步目前是空转——它自己会说明。
@@ -83,13 +100,17 @@ STEPS: tuple[Step, ...] = (
     Step("character generate", "scripts/character/generate_character.py",
          outputs=("character/{slug}_character_2k_nobg.png",
                   "character/{slug}_pose_sheet.png"),
+         needs_badge=("character/{slug}_character_2k_nobg.png",),
          costly=True),
     Step("character white", "scripts/character/make_white.py"),
     Step("character clear-badge", "scripts/character/clear_badge.py"),
     Step("brand poses", "scripts/brand/generate_poses.py",
          outputs=("brand/assets/{slug}_pose_thumbsup_nobg.png",
                   "brand/assets/{slug}_pose_wave_nobg.png"),
+         needs_badge=("brand/assets/{slug}_pose_thumbsup_nobg.png",
+                      "brand/assets/{slug}_pose_wave_nobg.png"),
          costly=True),
+    Step("character badge", "scripts/character/stamp_badge.py"),
     Step("brand backgrounds", "scripts/brand/generate_backgrounds.py",
          outputs=("brand/assets/bg_intro.png", "brand/assets/bg_outro.png"),
          costly=True),
@@ -117,15 +138,55 @@ def _model_for(person: str | None) -> model_mod.Model:
 
 
 def _under(slug: str, relative: str) -> Path:
-    return aim_paths.model_dir(slug) / relative.format(slug=slug)
+    """步骤表里的相对路径 → 绝对路径。
+
+    **基准是 `models/<slug>/assets/`**，不是 `models/<slug>/`。
+    素材都在这个人的 `assets/` 底下（`character/`、`brand/`……），
+    契约里的 `assets.mascot` 之类也是相对它写的。
+
+    以前这里基准是 `models/<slug>/`，**少了一层**——于是「产出齐全就跳过」
+    永远不成立，每跑一次链都把耗额度的步骤重做一遍，白烧额度。
+    """
+    return aim_paths.person_assets_dir(slug) / relative.format(slug=slug)
 
 
-def _done(step: Step, slug: str) -> bool:
-    """这一步做过了吗？——**产出全在且非空**才算做过。"""
+def _outputs_present(step: Step, slug: str) -> bool:
+    """这一步的产出**齐了**吗？（只管在不在，不管合不合格）"""
     if not step.outputs:
         return False
     return all(path.is_file() and path.stat().st_size > 0
                for path in (_under(slug, rel) for rel in step.outputs))
+
+
+def _badge_ok(paths: list[Path], env: dict) -> bool:
+    """这几件产出**带品牌词**吗？——子进程问 `stamp_badge.py --check`。
+
+    **子进程，不 import**：脚本在 import 时就把模型读进模块里，
+    同一个进程里 import 几个脚本会撞 `sys.modules` 里缓存的旧模块
+    （理由跟 `aimkit/cli.py` 一样）。
+
+    素材在**不等于**合格：模型有的时候不画胸口那块白色铭牌，
+    那种图渲出来的片子没有品牌词。所以这一步得重做。
+    """
+    cmd = [sys.executable, str(AIM_ROOT / BADGE_CHECK_SCRIPT), "--check",
+           *[str(p) for p in paths]]
+    proc = subprocess.run(cmd, cwd=str(AIM_ROOT), env=env,
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        for line in proc.stdout.splitlines():
+            if line.strip().startswith("✗"):
+                print(f"  {line.strip()}")
+    return proc.returncode == 0
+
+
+def _done(step: Step, slug: str, env: dict) -> bool:
+    """这一步做过了吗？——**产出全在、非空，而且带品牌词**才算做过。"""
+    if not _outputs_present(step, slug):
+        return False
+    badge_paths = [_under(slug, rel) for rel in step.needs_badge]
+    if badge_paths and not _badge_ok(badge_paths, env):
+        return False
+    return True
 
 
 def _missing_needs(step: Step, slug: str) -> list[str]:
@@ -258,10 +319,14 @@ def main(argv: list[str] | None = None) -> int:
 
         # **耗额度**的步骤：产物齐全就跳过——生成要花钱。
         # 本地步骤每次都跑：快、确定，而且改的往往就是它们。
-        if step.costly and not redo and _done(step, slug):
-            print(f"\n=== {step.name} === 跳过（产物齐全；"
-                  f"要重做用 --force）")
-            continue
+        if step.costly and not redo:
+            if _done(step, slug, env):
+                print(f"\n=== {step.name} === 跳过（产物齐全；"
+                      f"要重做用 --force）")
+                continue
+            if _outputs_present(step, slug):
+                print(f"\n=== {step.name} === 重做（产物在，但**没带品牌词**——"
+                      f"模型那批没在胸口画铭牌）")
 
         # **软缺**：缺了就跳过这一步，后面照跑（降级，不阻塞）。
         missing = _missing_needs(step, slug)

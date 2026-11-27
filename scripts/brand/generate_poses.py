@@ -54,7 +54,7 @@ HAS_GLASSES = look_spec.has_glasses(_MODEL)
 
 CHARACTER = aim_paths.character_dir(SLUG) / f"{SLUG}_character_2k.png"
 BRAND = aim_paths.brand_dir(SLUG)
-ASSETS = BRAND / "assets"
+ASSETS = aim_paths.brand_assets_dir(SLUG)
 
 # 角色设定：**逐条来自模型**。
 #
@@ -112,45 +112,81 @@ POSES = {
 }
 
 
-def generate(prompt: str, dest: Path) -> None:
-    """生成姿态图 → 擦镜框杂物 → 抠透明底 → 盖铭牌章。"""
-    ref = upload(CHARACTER)
-    res = call("connector__matrix__generate_image", {"requests": [{
-        "prompt": prompt,
-        "reference_images": [{"url": ref, "mime_type": "image/png"}],
-        "aspect_ratio": "1:1", "area": "2K", "output_format": "png",
-        "output_file": dest.name, "n": 1,
-    }]})
-    items = res.get("success_items") or []
-    if not items:
-        raise RuntimeError(f"生成失败：{res}")
-    download(items[0]["node_id"], dest)
-    print(f"  → {dest}")
+def stamp_or_discard(dest: Path) -> bool:
+    """盖铭牌章。**盖不上就把这张图删掉**，返回 False。
 
-    # 擦镜框杂物：模型戴上方形眼镜后有个反复出现的毛病——会在镜框或镜腿上
-    # 贴一小块白色小铭牌（实测写着品牌词）。它既是视觉噪点，又会被铭牌检测
-    # 当成真正的铭牌（它四周全是镜框色）。prompt 里已经禁止了，但模型不听，
-    # 所以图生图之后必须再做一次局部修补（详见 add_glasses.py 的说明）。
-    cleanup_glasses(dest, dest)
+    **删掉是关键**：素材在**不等于**素材合格——素材回路按「产物齐全」
+    跳过耗额度的步骤，留着一张没铭牌的图，它会一路流到品牌片里去，
+    渲出一部没有品牌词的片子，而没有任何人收到过一句提醒。
 
-    bg = call("connector__matrix__remove_image_background",
-              {"image_url": upload(dest)})
-    download(bg["node_id"], dest)
-    print(f"  → {dest}（已抠透明底）")
+    所以：**要么这张图带品牌词，要么它压根不存在。**
+    """
+    if stamp_badge(dest) is not None:
+        return True
+    dest.unlink(missing_ok=True)
+    return False
 
-    stamp_badge(dest)
+
+def generate(prompt: str, dest: Path, tries: int) -> None:
+    """生成姿态图 → 擦镜框杂物 → 抠透明底 → 盖铭牌章。
+
+    **盖不上铭牌就是废图**：模型有的时候不画胸口那块白色铭牌——
+    实测 2026-11-27 那批两个姿态都没画（画面上只剩胸口那枚琥珀黄图标）。
+    铭牌上必须有品牌词：品牌片的片头片尾就是从这张图渲出来的，
+    没铭牌 = 片子没有品牌词。所以盖不上就**重做**，重做几次还不行
+    就报错退出——不许留一张「看着挺好、其实没品牌词」的图。
+    """
+    for attempt in range(1, tries + 1):
+        ref = upload(CHARACTER)
+        res = call("connector__matrix__generate_image", {"requests": [{
+            "prompt": prompt,
+            "reference_images": [{"url": ref, "mime_type": "image/png"}],
+            "aspect_ratio": "1:1", "area": "2K", "output_format": "png",
+            "output_file": dest.name, "n": 1,
+        }]})
+        items = res.get("success_items") or []
+        if not items:
+            raise RuntimeError(f"生成失败：{res}")
+        download(items[0]["node_id"], dest)
+        print(f"  → {dest}")
+
+        # 擦镜框杂物：模型戴上方形眼镜后有个反复出现的毛病——会在镜框或镜腿上
+        # 贴一小块白色小铭牌（实测写着品牌词）。它既是视觉噪点，又会被铭牌检测
+        # 当成真正的铭牌（它四周全是镜框色）。prompt 里已经禁止了，但模型不听，
+        # 所以图生图之后必须再做一次局部修补（详见 add_glasses.py 的说明）。
+        cleanup_glasses(dest, dest)
+
+        bg = call("connector__matrix__remove_image_background",
+                  {"image_url": upload(dest)})
+        download(bg["node_id"], dest)
+        print(f"  → {dest}（已抠透明底）")
+
+        if stamp_or_discard(dest):
+            return
+
+        if attempt < tries:
+            print(f"  ! 胸口没有白色铭牌（模型这批没画）——重做"
+                  f"（第 {attempt}/{tries} 次）", file=sys.stderr)
+    raise RuntimeError(
+        f"{dest.name}：重做 {tries} 次，模型都没在胸口画那块白色铭牌。"
+        f"prompt 已经写死了「胸前上部必须有一块白色矩形铭牌」，"
+        f"模型还是不听——只能改 prompt 或者手工补一块。"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="生成品牌片用的角色姿态素材")
     parser.add_argument("--thumbsup", action="store_true", help="只生成点赞姿态")
     parser.add_argument("--wave", action="store_true", help="只生成挥手姿态")
+    parser.add_argument("--tries", type=int, default=3,
+                        help="盖不上铭牌就重做，最多做几次（默认 3）")
     args = parser.parse_args(argv)
 
     if not CHARACTER.exists():
         print(f"缺少主形象：{CHARACTER}", file=sys.stderr)
         return 1
 
+    tries = max(1, args.tries)
     wanted = []
     if args.thumbsup or not args.wave:
         wanted.append("thumbsup")
@@ -159,8 +195,12 @@ def main(argv: list[str] | None = None) -> int:
     for name in wanted:
         prompt, dest = POSES[name]
         print(f"生成 {name} …")
-        generate(prompt, dest)
-    print("完成。规范见 video/形象与音色规范.md")
+        try:
+            generate(prompt, dest, tries)
+        except RuntimeError as exc:
+            print(f"{name} 姿态没成：{exc}", file=sys.stderr)
+            return 1
+    print("完成。规范见 specs/形象规范.md")
     return 0
 
 

@@ -171,8 +171,9 @@ python3 -m pytest tests/ -q
 ```
 
 **素材按设计不入库**（版权与口味是使用者的），但**本机要有**——
-跑回归前用 `./aim assets build` 生成到本地，那 18 个「素材不在本机」的
-用例才真的跑起来。见 [`docs/本地素材回路.md`](docs/本地素材回路.md)。
+跑回归前用 `./aim assets build` 生成到本地，那 19 个「素材不在本机」的
+用例才真的跑起来（实测：190 passed / 19 skipped → **209 passed / 0 skipped**）。
+见 [`docs/本地素材回路.md`](docs/本地素材回路.md)。
 
 ** `./aim` 是门面，实现是脚本**——参数原样转交、退出码原样传回，
 所以每条脚本**也都能单独跑**（`python3 scripts/brand/render_brand.py --intro`）。

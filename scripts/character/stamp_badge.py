@@ -28,6 +28,7 @@
 用法：
   python3 scripts/stamp_badge.py                  # 处理默认素材
   python3 scripts/stamp_badge.py <png> [png...]   # 处理指定文件
+  python3 scripts/stamp_badge.py --check <png>... # 只查不改：缺铭牌就退 1
 """
 from __future__ import annotations
 
@@ -58,7 +59,7 @@ _MODEL = model_mod.load()
 TEXT = _MODEL.brand.get("token", "")
 SLUG = _MODEL.person
 CHAR_DIR = aim_paths.character_dir(SLUG)
-BRAND_ASSETS = aim_paths.brand_dir(SLUG)
+BRAND_ASSETS = aim_paths.brand_assets_dir(SLUG)
 # 铭牌上的字色：**这个人的事实**（`look_spec.badge_text_color`），
 # 没声明就用默认的深色——白牌上的字要看得清。
 TEXT_COLOR = look_spec.badge_text_rgb(_MODEL)
@@ -77,10 +78,20 @@ CHROMA_TOL = 0.18
 
 NEAR_WHITE = 205          # 近白阈值
 MIN_SIDE = 8                # 铭牌最小边长（像素）
-# 铭牌是横向长方形。实测长宽比在 1.8 ~ 2.4 之间（盖章后白色块会略微
-# 上下扩展一点），所以卡 1.5 留足余量。
-MIN_ASPECT = 1.5            # 铭牌是横向长方形
-MAX_AREA_RATIO = 0.004      # 铭牌面积不超过画布的 0.4%
+# 铭牌是横向长方形。
+#
+# **实测（2026-11-27 重新生成的那一批）**：主形象 1.68、点赞姿态 **1.37**、
+# 挥手姿态 1.66。点赞那张接近正方形——所以卡 1.5 会把**真铭牌**判掉。
+# 卡 1.25：仍然是「明显横向」，又容得下 1.37。
+MIN_ASPECT = 1.25           # 铭牌是横向长方形
+# 铭牌面积的上限。**只作兜底**——真正的关卡是区域、尺寸、位置、纯白度。
+#
+# **实测（2026-11-27 那批）**：主形象 0.485%、点赞 0.412%、挥手 0.445%——
+# 三枚都超过旧的 0.4%，于是一枚都没被认出来（画面上明明有铭牌，
+# 却报「没找到铭牌」，品牌词盖不上去）。
+# 0.8% 给实测值留一半余量；白底图整块背景是 100%，脸盆上的大白牌
+# 是 2.9%——这两块都还有别的关卡（区域 / 位置）挡着。
+MAX_AREA_RATIO = 0.008      # 铭牌面积不超过画布的 0.8%
 # 铭牌四周一圈的「衣服占比」随生成批次波动很大（实测 0.27~0.47，
 # 10px 环宽下），所以这个值只当兜底门槛，真正的判据是尺寸 + 长宽比。
 MIN_RING_FRACTION = 0.08    # 四周一圈必须是衣服色（通用路径：非白）
@@ -104,11 +115,16 @@ MIN_HEIGHT_RATIO = 0.015    # 铭牌高度至少占画布高 1.5%（2048 画布 
 # 这条约束挡的是「镜框上的白牌把真铭牌挤掉」——那块白牌四周全是镜框
 # 颜色，「衣服占比」比胸口那块真铭牌还高，光看颜色分不开。
 MIN_BADGE_SUBJECT_Y = 0.45  # 铭牌上沿必须低于主体高度的 45%
-# 铭牌是**纯白**的塑料牌，而角色的脚趾是奶油色、眼睛是高光：
-# 实测铭牌区域「三个通道都 ≥ 240」的像素占 85%~89%，
-# 脚趾只有 21%，眼睛 1%。这条把「胸口的白块」和「脚上的白块」分开。
-WHITE_CHANNEL_MIN = 240
-MIN_WHITE_FRACTION = 0.55
+# 铭牌是**白塑料牌**，角色的脚趾是奶油色、眼睛是高光。
+#
+# **实测（2026-11-27 重新生成的那批）**：铭牌被渲染成**暖调的白**
+# （主形象中位 243,243,241；点赞 248,249,238；挥手 240,240,230）——
+# 蓝通道最低到 230，卡 240 会把它们全判成「不够纯白」。
+# 而奶油色脚趾的蓝通道是 222（合成用例里的脚趾是 244,238,222）。
+# **225 卡在两者之间**：三枚真铭牌在 225 下的纯白占比实测
+# 0.83 / 0.72 / 0.76，奶油脚趾是 0。
+WHITE_CHANNEL_MIN = 225
+MIN_WHITE_FRACTION = 0.50
 
 DEFAULT_TARGETS = (
     CHAR_DIR / f"{SLUG}_character_2k.png",
@@ -416,16 +432,63 @@ def stamp_badge(path: str | Path) -> Badge | None:
     return badge
 
 
+def check_badge(path: str | Path) -> bool:
+    """这张图上有铭牌吗？**只查不改。**
+
+    给「产物合不合格」用——素材在不在是一回事，**上面有没有品牌词**
+    是另一回事：模型有的时候不画胸口那块白色铭牌（实测 2026-11-27
+    那批两个姿态都没画），那种图拿去渲品牌片，片子就没有品牌词。
+    """
+    path = Path(path)
+    if not path.exists():
+        return False
+    image = Image.open(path).convert("RGBA")
+    return find_badge(image, VEST_RGB) is not None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="给形象盖铭牌：刷白那块白矩形，再用真实字体写上品牌词。")
     parser.add_argument("paths", nargs="*",
                         help="要盖的图（缺省 = 这个人素材目录里那几张）")
+    parser.add_argument("--check", action="store_true",
+                        help="只查不改：查这些图有没有铭牌，缺一个就退 1")
     args = parser.parse_args(argv)
     targets = ([Path(a) for a in args.paths] if args.paths
                else list(DEFAULT_TARGETS))
+
+    if args.check:
+        missing = []
+        for target in targets:
+            if not target.exists():
+                print(f"  - {target.name}：文件不在，不查")
+                continue
+            if check_badge(target):
+                print(f"  ✓ {target.name}：铭牌在")
+            else:
+                missing.append(target)
+                print(f"  ✗ {target.name}：没有铭牌")
+        if missing:
+            print(f"{len(missing)} 张图没有铭牌："
+                  + "、".join(p.name for p in missing), file=sys.stderr)
+            return 1
+        return 0
+
+    missing = []
     for target in targets:
-        stamp_badge(target)
+        if not target.exists():
+            # 文件不在是**正常**的（素材还没生成），不是「缺铭牌」。
+            print(f"  - {target.name}：文件不存在，跳过", file=sys.stderr)
+            continue
+        if stamp_badge(target) is None:
+            missing.append(target)
+    if missing:
+        # **不许一声不吭地跳过**：盖不上就是这张图不合格。
+        print(f"{len(missing)} 张图盖不上铭牌："
+              + "、".join(p.name for p in missing), file=sys.stderr)
+        print("模型这批没在胸口画白色铭牌——把产出它的那一步重做就好。",
+              file=sys.stderr)
+        return 1
     return 0
 
 

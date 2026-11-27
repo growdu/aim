@@ -17,14 +17,16 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 
 import pytest
 
 from aimkit import cli as cli_mod
 from aimkit import model as model_mod
+from aimkit import paths as aim_paths
 
-from _scripts import load_script
+from _scripts import load_script, real_asset_paths
 
 
 def _build_assets():
@@ -54,23 +56,157 @@ def test_the_audio_comes_before_the_render():
     )
 
 
-def test_the_glasses_and_the_badge_are_not_in_the_chain():
-    """**眼镜与盖章都不在链上。**
+def test_the_glasses_are_not_in_the_chain():
+    """**眼镜不在链上。**
 
-    - 眼镜：`generate_character.py` 与 `generate_poses.py` 的 prompt
-      已经带眼镜；`add_glasses.py` 是给旧素材补眼镜的另一条路，
-      带人工关卡（staging → 目视验收 → promote）。
-    - 盖章：`generate_character.py` 生成后**自己就盖章了**；
-      再盖一次是在已盖字的白块上盖第二次，铭牌检测靠白块连通域，
-      第二次可能定位不准。
+    `generate_character.py` 与 `generate_poses.py` 的 prompt 已经带眼镜
+    （`look_spec.glasses` 声明了就写进 prompt）；`add_glasses.py` 是给
+    **旧素材**补眼镜的另一条路，带人工关卡（staging → 目视验收 → promote）。
     """
     steps = _names(_build_assets().STEPS)
 
     assert "character glasses" not in steps, (
         f"眼镜不在链上——它带人工关卡：{steps}"
     )
-    assert "character badge" not in steps, (
-        f"盖章不在链上——generate 自己就盖了：{steps}"
+
+
+def test_the_badge_comes_after_the_white_and_after_the_poses():
+    """**盖章在白底合成之后，也在姿态生成之后。**
+
+    - `make_white` 从透明底版**重写**白底版，章得重新盖一遍；
+    - 姿态图是 `brand poses` 那一步才生成的——盖章排在它前面，
+      姿态图压根还不存在，那一步永远盖不到它。
+
+    看着多余（`generate` 生成后自己就盖了），但它保两件事：
+    `generate` 被跳过时品牌词照样最新；改了 `brand.token` 再跑一遍章会跟着改。
+    """
+    steps = _names(_build_assets().STEPS)
+
+    assert "character badge" in steps, f"链上没有盖章：{steps}"
+    assert steps.index("character white") < steps.index("character badge"), (
+        f"盖章要在白底合成之后——make_white 会重写白底版：{steps}"
+    )
+    assert steps.index("brand poses") < steps.index("character badge"), (
+        f"盖章要在姿态生成之后——姿态图是那一步才有的：{steps}"
+    )
+
+
+def test_the_clearing_comes_after_the_generation():
+    """**抹铭牌在生成之后。**
+
+    抹的是「带铭牌那份」——生成那一步自己就盖了章，所以抹要在它后面。
+    """
+    steps = _names(_build_assets().STEPS)
+
+    assert "character clear-badge" in steps, f"链上没有抹铭牌：{steps}"
+    assert steps.index("character generate") < steps.index("character clear-badge"), (
+        f"抹铭牌要在生成之后——抹的是带铭牌那份：{steps}"
+    )
+
+
+# ---- 路径：素材在哪，链与测试得看同一个地方 -------------------------------
+
+
+def test_the_step_paths_resolve_under_the_person_asset_dir():
+    """步骤表里的路径，基准是 `models/<slug>/assets/`。
+
+    以前基准是 `models/<slug>/`，**少了一层**——于是「产出齐全就跳过」
+    永远不成立：每跑一次链，耗额度的步骤都被重做一遍，**白烧额度**，
+    而且屏幕上什么异常都看不出来。
+    """
+    build = _build_assets()
+    slug = model_mod.load().person
+    base = aim_paths.person_assets_dir(slug)
+
+    for step in build.STEPS:
+        for rel in step.outputs + step.needs + step.needs_badge:
+            path = build._under(slug, rel)
+            assert base in path.parents, (
+                f"{step.name} 的 {rel} 解析到了 {path}——"
+                f"不在 {base} 底下，跳过判断就永远不成立"
+            )
+
+
+def test_the_chain_and_the_tests_look_at_the_same_assets():
+    """**链上的产出 == 测试验的素材。**
+
+    以前三个测试文件自己拼 `person_assets_dir/"brand/..."`，而品牌片的
+    脚本把素材放在 `brand/assets/` 下——**少一层**。于是那些用例永远在
+    找一条不存在的路径、永远 skip，等于写了但从没跑过。
+    """
+    build = _build_assets()
+    slug = model_mod.load().person
+    expected = set(real_asset_paths(slug))
+
+    steps = {step.name: step for step in build.STEPS}
+    outputs = {build._under(slug, rel) for rel in steps["brand poses"].outputs}
+    pose_paths = {p for p in expected if "pose" in p.name}
+    assert outputs == pose_paths, (
+        f"链上的姿态产出与测试看的位置对不上："
+        f"{sorted(str(p) for p in outputs)} vs {sorted(str(p) for p in pose_paths)}"
+    )
+
+    stamp = load_script("character/stamp_badge.py")
+    assert expected <= set(stamp.DEFAULT_TARGETS), (
+        f"盖章脚本的默认目标少了测试要验的素材：{stamp.DEFAULT_TARGETS}"
+    )
+
+
+# ---- 产物合不合格：文件在 ≠ 合格 -----------------------------------------
+
+
+def _env_for(slug: str) -> dict:
+    return {
+        **os.environ,
+        model_mod.MODEL_ENV: str(aim_paths.model_path(slug)),
+    }
+
+
+def test_a_product_with_the_brand_word_is_done():
+    """产出齐全**且带品牌词** → 这一步算做过了（省额度）。"""
+    build = _build_assets()
+    slug = model_mod.load().person
+    env = _env_for(slug)
+
+    step = build.STEPS[[s.name for s in build.STEPS].index("brand poses")]
+    if not all(build._under(slug, rel).exists() for rel in step.outputs):
+        pytest.skip("本机没有姿态素材，跳过")
+
+    assert build._done(step, slug, env) is True, \
+        "产出齐了、带品牌词，却判成没做完——链会白重做一遍"
+
+
+def test_a_product_without_the_brand_word_is_not_done(tmp_path, monkeypatch):
+    """产出在、但**没带品牌词** → 这步不算做完，链要重做它。
+
+    模型有的时候不画胸口那块白色铭牌（实测 2026-11-27 那批两个姿态
+    都没画，画面上只剩胸口那枚琥珀黄图标）。那种图渲出来的片子
+    没有品牌词——不能当成合格的产物，更不能悄悄流到品牌片里去。
+    """
+    build = _build_assets()
+    slug = model_mod.load().person
+    from PIL import Image
+
+    asset = tmp_path / "pose.png"
+    Image.new("RGBA", (256, 256), (12, 24, 48, 255)).save(asset)
+    monkeypatch.setattr(build, "_under", lambda s, rel: asset)
+
+    step = build.Step("brand poses", "scripts/brand/generate_poses.py",
+                       outputs=("pose.png",), needs_badge=("pose.png",),
+                       costly=True)
+
+    assert build._done(step, slug, _env_for(slug)) is False, \
+        "没带品牌词的产物被判成做过了——坏素材会一路流到品牌片"
+
+
+def test_the_pose_step_declares_that_its_outputs_need_the_brand_word():
+    """姿态素材必须带品牌词——所以「做完了」的判据里要算上它。"""
+    build = _build_assets()
+    steps = {step.name: step for step in build.STEPS}
+
+    poses = steps["brand poses"]
+    assert set(poses.needs_badge) == set(poses.outputs), (
+        f"brand poses 的产出都得带品牌词：{poses}"
     )
 
 
