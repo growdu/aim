@@ -53,9 +53,10 @@ skill 与 agent 在**独立分发包**里（**不在本仓**）——本仓是�
 | **音色** | `scripts/voice/` | 量测参照录音、查多音字读音 | `python3 -m pytest tests/test_voice.py -q` |
 | **体检** | `scripts/doctor.py` | 契约与素材齐不齐（**只报告，不改**） | `python3 scripts/doctor.py` |
 | **线内规格** | `specs/` | 平台契约 / 形象 / 音色 / 品牌片 / 人格五份规范 | ——（文档） |
+| **使用教程** | `docs/` | 从 clone 到出片的**操作手册**（`docs/使用教程.md`） | ——（文档） |
 | **素材** | `assets/` | 内置字体子集 + 出处台账（**入库**） | `python3 -m pytest tests/test_fonts.py -q` |
 | **素材入库** | `tests/` | 用户素材不入库、内置字体与授权台账要入库 | `python3 -m pytest tests/test_assets_are_tracked.py -q` |
-| **本仓守卫** | `tests/` | 模型形状、字体出处与缺字、眼镜规格、人格、品牌片 | `python3 -m pytest tests/ -q` |
+| **本仓守卫** | `tests/` | 模型形状、字体出处与缺字、眼镜规格、人格、品牌片、**文档链接** | `python3 -m pytest tests/ -q` |
 | **通用性守卫** | `tests/` | 代码里不许写死任何一个人；换一个完全不同的人必须跑得通 | `python3 -m pytest tests/test_no_hardcoded_person.py tests/test_person_swap.py -q` |
 | **入口守卫** | `tests/` | 每条脚本都要会答 `--help`；**每条入口脚本都得进命令表**（漏登记 = CLI 叫不到它） | `python3 -m pytest tests/test_cli.py -q` |
 
