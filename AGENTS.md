@@ -32,6 +32,10 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 × 契约（`model.json`）× 产物（PNG / MP4 / WAV）。见
 [`specs/平台契约.md`](specs/平台契约.md)。
 
+**交付形式**：**CLI**（仓根的 `./aim`）+ **skill** + **agent**。
+skill 与 agent 在**独立分发包**里（**不在本仓**）——本仓是跑东西的仓，
+不是 Claude Code 的配置仓。它们调**同一个 `./aim`**——**实现只有一份**。
+
 ---
 
 ## 二、模块地图
@@ -39,7 +43,8 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 | 模块 | 一级目录 | 它拥有 | 验收命令 |
 |------|----------|--------|----------|
 | **模型契约** | `models/` | `model.json`（这个人的唯一契约）、`brand_windows.json` | `python3 -m pytest tests/test_model.py -q` |
-| **可复用件** | `aimkit/` | `model.py`（读模型）、`look.py`（形象规格与配色）、`paths.py`（路径常量）、`fonts.py`（字体解析） | `python3 -m pytest tests/ -q` |
+| **可复用件** | `aimkit/` | `model.py`（读模型）、`look.py`（形象规格与配色）、`paths.py`（路径常量）、`fonts.py`（字体解析）、`cli.py`（命令表） | `python3 -m pytest tests/ -q` |
+| **命令行入口** | `aim` + `aimkit/cli.py` | **一个入口** `aim <阶段> <动作>`——命令表指向现有脚本，参数与退出码原样转交（**实现只有一份**） | `python3 -m pytest tests/test_cli.py -q` |
 | **形象** | `scripts/character/` | 生成主形象、戴眼镜、合成白底 | `python3 -m pytest tests/test_character.py -q` |
 | **形象素材** | `scripts/character/` | 眼镜图与主形象的位置对不对、是不是模型说的那份 | `python3 -m pytest tests/test_character_assets.py tests/test_glasses_assets.py -q` |
 | **铭牌** | `scripts/character/` | 盖铭牌（`stamp_badge.py`）、抹铭牌（`clear_badge.py`）——找铭牌那块白矩形靠 `scipy.ndimage` | `python3 -m pytest tests/test_stamp_badge.py tests/test_clear_badge.py -q` |
@@ -52,7 +57,7 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 | **素材入库** | `tests/` | 用户素材不入库、内置字体与授权台账要入库 | `python3 -m pytest tests/test_assets_are_tracked.py -q` |
 | **本仓守卫** | `tests/` | 模型形状、字体出处与缺字、眼镜规格、人格、品牌片 | `python3 -m pytest tests/ -q` |
 | **通用性守卫** | `tests/` | 代码里不许写死任何一个人；换一个完全不同的人必须跑得通 | `python3 -m pytest tests/test_no_hardcoded_person.py tests/test_person_swap.py -q` |
-| **入口守卫** | `tests/` | 每条脚本都要会答 `--help`（交付形式是命令行，就得能问） | `python3 -m pytest tests/test_cli.py -q` |
+| **入口守卫** | `tests/` | 每条脚本都要会答 `--help`；**每条入口脚本都得进命令表**（漏登记 = CLI 叫不到它） | `python3 -m pytest tests/test_cli.py -q` |
 
 **跳过**（AI 不读不改）：`models/*/assets/`（这个人的素材，不入库）、
 `models/*/_staging/`（加眼镜流程的中间产物）、`__pycache__/`、`.pytest_cache/`。
@@ -94,6 +99,9 @@ models/<slug>/model.json          ← 这个人（唯一契约）
   涨版本号之前先想清楚：**还有谁在读这份契约。**
 - **不猜用哪个人**：仓里有好几个人时报错列出候选，**绝不猜**
   （猜错就是拿别人的事实去生成这个人的素材与片子）。
+- **一个入口，一个实现**：`./aim` 只是**门面**——命令表指向现有脚本，
+  参数与退出码**原样转交**。别在入口里重写逻辑；**也别漏登记脚本**
+  （漏登记 = CLI 叫不到它，`tests/test_cli.py` 会红）。
 - **验收按模块拆开**：谁改了什么，只有谁的套件会红。
 
 ### 3.3 禁碰

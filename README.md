@@ -34,16 +34,27 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 
 ### 1.1 交付形式
 
-**不是 agent，不是 skill，不是二进制**——**是一个 git 仓 + 一组命令行脚本
-+ 一份 JSON 契约文件**。
+**三样**：**CLI**（仓根的 `./aim`）、**skill**、**agent**。
 
-| 谁 | 怎么用 |
-| --- | --- |
-| **人**（生产素材与片子） | clone 仓 → 装依赖与字体 → 逐条跑 `python3 scripts/…`。每条脚本都是独立 CLI，都有 `--help`（`tests/test_cli.py` 盯着） |
-| **下游**（别的程序） | **只读 `models/<slug>/model.json`** 与它指到的素材。**不 import 本仓**——`aimkit/` 是仓内实现，不是对外 API |
-| **CI** | GitHub Actions：装内置字体 → `python3 -m pytest tests/ -q` |
+| 谁 | 拿什么 | 怎么用 |
+| --- | --- | --- |
+| **人**（生产素材与片子） | **CLI** | clone 仓 → 装依赖与字体 → `./aim <阶段> <动作>`。参数原样转交给脚本，退出码原样传回；每条脚本也都能单独跑（都有 `--help`，`tests/test_cli.py` 盯着） |
+| **AI / 工具**（别的 agent） | **skill + agent** | 装**独立分发包**（**不在本仓**）：skill 教它流程与铁律，agent 是专职跑活的。两者都调**同一个 `./aim`**——**实现只有一份** |
+| **下游**（别的程序） | **一份 JSON 契约** | **只读 `models/<slug>/model.json`** 与它指到的素材。**不 import 本仓**——`aimkit/` 是仓内实现，不是对外 API |
+| **CI** | — | GitHub Actions：装内置字体 → `python3 -m pytest tests/ -q` |
 
-**为什么不是包**：aim 的产物是**素材**（使用者的东西，版权与口味是他们的），
+```bash
+./aim --help              # 列全部命令
+./aim character           # 列这一组的动作
+./aim character badge --help
+```
+
+**为什么 skill / agent 不在本仓**：本仓是**跑东西的仓**，不是 Claude Code 的配置仓。
+放进来，两边都要改对方的形状。**分发包**里只有「模板 + 安装脚本」——
+铁律与流程**指的是本仓那份**（`AGENTS.md` / `specs/`），不是抄一份；
+命令表在**安装时从本仓现生成**，单一出处，不会过期。
+
+**为什么不是 pip 包**：aim 的产物是**素材**（使用者的东西，版权与口味是他们的），
 不是一个能 `pip install` 的库。做成包反而会**假装**它有对外 API——
 而它没有：**缝是文件**。
 
@@ -55,7 +66,8 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 | 目录 | 装什么 |
 | --- | --- |
 | `models/<slug>/` | **这个人的模型**：`model.json`（契约）+ `brand_windows.json`（配乐窗口决策）。素材在 `assets/` 下，**不入库** |
-| `aimkit/` | **可复用的那部分**：`model.py`（读模型）、`look.py`（形象规格与配色）、`paths.py`（路径常量）、`fonts.py`（字体解析） |
+| `aimkit/` | **可复用的那部分**：`model.py`（读模型）、`look.py`（形象规格与配色）、`paths.py`（路径常量）、`fonts.py`（字体解析）、`cli.py`（命令表） |
+| `aim` | **命令行入口**（仓根）：`aim <阶段> <动作> [参数…]`。是**门面**——命令表指向现有脚本，参数与退出码原样转交 |
 | `scripts/character/` | 形象侧：生成主形象、戴眼镜、盖铭牌、抹铭牌、合成白底 |
 | `scripts/brand/` | 品牌片侧：生成姿态与背景、重排底板文字、渲染片头片尾、配音 |
 | `scripts/voice/` | 音色侧：量测参照录音、查多音字读音 |
@@ -119,41 +131,48 @@ models/<slug>/model.json          ← 这个人（唯一契约）
 
 ### 5.2 怎么跑
 
+**入口是仓根的 `./aim`**（**在仓根跑**）：
+
 ```bash
 # 装依赖（Linux 上优先用系统包，见 requirements/dev.txt）
 pip install -r requirements/dev.txt
 
 # 装内置字体（跨机版式一致靠它）
-python3 scripts/install_font.py
-python3 scripts/install_font.py --check
+./aim font install
+./aim font install --check
 
 # 1) 建模：把确认结论归一化成契约（**校验通过才写**）
-python3 scripts/build_model.py --person <slug> --out models/<slug>/model.json
+./aim model build --person <slug> --out models/<slug>/model.json
 
 # 2) 体检：契约与素材齐不齐（只报告，不改）
-python3 scripts/doctor.py
+./aim doctor
 
 # 3) 出形象（每一步都消耗生成额度）
-python3 scripts/character/generate_character.py   # 主形象 + 6 姿态表
-python3 scripts/character/add_glasses.py         # 戴眼镜（没声明眼镜就整体跳过）
-python3 scripts/character/make_white.py          # 透明底合成白底版
-python3 scripts/character/stamp_badge.py         # 盖铭牌（品牌词用真实字体写）
-python3 scripts/character/clear_badge.py         # 抹铭牌（平台判「过度营销」时用）
+./aim character generate      # 主形象 + 6 姿态表
+./aim character glasses       # 戴眼镜（没声明眼镜就整体跳过）
+./aim character white         # 透明底合成白底版
+./aim character badge         # 盖铭牌（品牌词用真实字体写）
+./aim character clear-badge   # 抹铭牌（平台判「过度营销」时用）
 
 # 4) 出品牌片
-python3 scripts/brand/generate_poses.py          # 点赞 / 挥手姿态
-python3 scripts/brand/generate_backgrounds.py    # 两张 AI 背景（语义验收）
-python3 scripts/brand/make_audio_brand.py        # 按窗口混成品音轨
-python3 scripts/brand/render_brand.py            # 渲染片头 / 片尾
+./aim brand poses             # 点赞 / 挥手姿态
+./aim brand backgrounds       # 两张 AI 背景（语义验收）
+./aim brand audio             # 按窗口混成品音轨
+./aim brand render            # 渲染片头 / 片尾
 
 # 本仓守卫
 python3 -m pytest tests/ -q
 ```
 
-**每条脚本都可以单独跑**（`--intro` / `--outro` / `--thumbsup` / `--wave`
-按需只做一半）。缺素材时它们**降级并说清楚缺什么**，不糊过去。
+** `./aim` 是门面，实现是脚本**——参数原样转交、退出码原样传回，
+所以每条脚本**也都能单独跑**（`python3 scripts/brand/render_brand.py --intro`）。
+每条都有 `--help`。缺素材时它们**降级并说清楚缺什么**，不糊过去。
 详见 [`scripts/character/readme.md`](scripts/character/readme.md) 与
 [`scripts/brand/readme.md`](scripts/brand/readme.md)。
+
+**指一个人**：脚本在 import 时就读模型，**不指就报错退出**——
+设 `AIM_MODEL=models/<slug>/model.json`
+（仓里有好几个人时**报错列出候选，绝不猜**）。
 
 ### 5.3 产出
 

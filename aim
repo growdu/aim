@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""`aim` —— **这个仓的命令行入口**。
+
+仓里有一堆脚本，但**散着的脚本不是 CLI**：别的工具、别的 agent 没法稳定地调
+（路径要自己拼、参数要自己查、退出码得自己认）。
+这个文件给**一个名字**：`aim <阶段> <动作> [参数…]`。
+
+**它只是门面。** 命令表在 `aimkit/cli.py`，指向**现有的脚本**，
+参数原样转交、退出码原样传回——**实现只有一份**。
+
+    ./aim --help            # 列全部命令
+    ./aim character         # 列这一组的动作
+    ./aim character badge --help
+
+跑法：**在仓根**（`./aim`）。仓根是脚本的基准，不是「系统里的路径」。
+"""
+import sys
+from pathlib import Path
+
+# 仓根要进 `sys.path`——`aimkit` 才 import 得到。
+# （脚本自己也靠这个：它们在 import 时就读模型。）
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from aimkit.cli import main  # noqa: E402  （要先把仓根塞进 sys.path）
+
+if __name__ == "__main__":
+    raise SystemExit(main())
