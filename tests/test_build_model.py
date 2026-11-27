@@ -30,6 +30,12 @@ def _write(path, data: dict) -> None:
                     encoding="utf-8")
 
 
+#: 仓里这个人的实例——**入库的事实**。
+#:
+#: 它是整个仓里唯一一份**真的**契约，所以拿它当标准用例。
+COMMITTED_MODEL = paths.model_path("growdu")
+
+
 #: 事先输入的确认结论——**跟仓里那个人完全不同的一个人**。
 #:
 #: 之所以不用仓里那个人：两边值一样的话，「原样保留」可能只是**撞对了**。
@@ -160,6 +166,59 @@ def test_the_core_flow_turns_a_draft_into_the_matching_model(tmp_path):
     assert model.brand_file("windows") == out.parent / "brand_windows.json"
     # 空 = 还没定，不是错误
     assert model.asset("avatar") is None
+
+
+def test_the_committed_instance_is_reproduced_by_the_tool(tmp_path):
+    """**标准用例**：仓里这个人的实例，工具得能原样产出。
+
+    `models/growdu/model.json` 是**入库的事实**——整仓唯一一份真的契约。
+    它不该是**手搓出来**的：手搓的契约会跟框架悄悄错开
+    （该有的空壳段缺了、`schema` 忘了涨），而**没人数得清**。
+
+    所以拿它当标准用例：喂给 `build_model`，产出的那份必须
+    **跟它逐项相等**。
+
+    **不比键的顺序**——JSON 对象无序，键序不是契约的一部分。
+    只比**键与值**。这样有人动这份文件时，守卫报的是
+    「形状跟不上框架」，而不是「你把键挪了个位置」。
+    """
+    committed = json.loads(COMMITTED_MODEL.read_text(encoding="utf-8"))
+    out = tmp_path / "model.json"
+
+    proc = subprocess.run(
+        [sys.executable, str(paths.AIM_ROOT / "aim"), "model", "build",
+         "--person", committed["person"],
+         "--from", str(COMMITTED_MODEL), "--out", str(out)],
+        cwd=str(paths.AIM_ROOT), capture_output=True, text=True,
+    )
+    assert proc.returncode == 0, (
+        f"拿仓里这份实例跑 build_model 退了 {proc.returncode}——"
+        f"它跟框架对不上了：\n{proc.stderr}\n"
+        f"修法：./aim model build --person {committed['person']} "
+        f"--from {COMMITTED_MODEL} --out {COMMITTED_MODEL}"
+    )
+
+    produced = json.loads(out.read_text(encoding="utf-8"))
+    assert produced == committed, (
+        "仓里这份 model.json 跟工具产出的那份对不上——"
+        "它是手搓出来的，或者形状跟不上框架了。\n"
+        f"修法：./aim model build --person {committed['person']} "
+        f"--from {COMMITTED_MODEL} --out {COMMITTED_MODEL}（校验通过才写）"
+    )
+
+    # 读回来——**这个人的**事实，走的是下游用的那些访问器
+    model = model_mod.load(COMMITTED_MODEL)
+    assert model.person == committed["person"]
+    assert model.persona == committed["persona"]
+    assert model.identity["name"] == committed["identity"]["name"]
+    assert model.voice["voice_id"] == committed["voice"]["voice_id"]
+    assert model.background_prompt("intro") == \
+        committed["brand"]["backgrounds"]["intro"]
+    assert model.brand_colour("deep") == committed["brand"]["colors"]["deep"]
+
+    # 相对路径的基准是 model.json 所在目录
+    assert model.asset("mascot") == \
+        COMMITTED_MODEL.parent / committed["assets"]["mascot"]
 
 
 def test_it_keeps_the_existing_values(tmp_path):
