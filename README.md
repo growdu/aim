@@ -150,7 +150,10 @@ pip install -r requirements/dev.txt
 # 2) 体检：契约与素材齐不齐（只报告，不改）
 ./aim doctor
 
-# 3) 出形象（每一步都消耗生成额度）
+# 3) 生成本地素材（一条命令跑完整条链；产物留在本地，**不入库**）
+./aim assets build
+
+#    也可以单步跑（每一步都消耗生成额度）
 ./aim character generate      # 主形象 + 6 姿态表
 ./aim character glasses       # 戴眼镜（没声明眼镜就整体跳过）
 ./aim character white         # 透明底合成白底版
@@ -166,6 +169,10 @@ pip install -r requirements/dev.txt
 # 本仓守卫
 python3 -m pytest tests/ -q
 ```
+
+**素材按设计不入库**（版权与口味是使用者的），但**本机要有**——
+跑回归前用 `./aim assets build` 生成到本地，那 18 个「素材不在本机」的
+用例才真的跑起来。见 [`docs/本地素材回路.md`](docs/本地素材回路.md)。
 
 ** `./aim` 是门面，实现是脚本**——参数原样转交、退出码原样传回，
 所以每条脚本**也都能单独跑**（`python3 scripts/brand/render_brand.py --intro`）。

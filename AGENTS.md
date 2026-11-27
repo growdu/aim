@@ -51,6 +51,7 @@ skill 与 agent 在**独立分发包**里（**不在本仓**）——本仓是�
 | **铭牌** | `scripts/character/` | 盖铭牌（`stamp_badge.py`）、抹铭牌（`clear_badge.py`）——找铭牌那块白矩形靠 `scipy.ndimage` | `python3 -m pytest tests/test_stamp_badge.py tests/test_clear_badge.py -q` |
 | **品牌片** | `scripts/brand/` | 生成姿态与背景、重排底板文字、渲染片头片尾、配音 | `python3 -m pytest tests/test_brand.py -q` |
 | **品牌片脚本** | `scripts/brand/` | 脚本只引用模型里声明的素材 | `python3 -m pytest tests/test_brand_scripts.py -q` |
+| **素材回路** | `scripts/build_assets.py` | 按依赖顺序把素材在本地生成出来（**不入库**，留在 `models/<slug>/assets/`） | `python3 -m pytest tests/test_assets_build.py -q` |
 | **音色** | `scripts/voice/` | 量测参照录音、查多音字读音 | `python3 -m pytest tests/test_voice.py -q` |
 | **体检** | `scripts/doctor.py` | 契约与素材齐不齐（**只报告，不改**） | `python3 scripts/doctor.py` |
 | **线内规格** | `specs/` | 平台契约 / 形象 / 音色 / 品牌片 / 人格五份规范 | ——（文档） |
@@ -79,6 +80,10 @@ skill 与 agent 在**独立分发包**里（**不在本仓**）——本仓是�
   缝是**文件**。
 - **入库的是事实，不入库的是产物与素材**：素材只在本地，
   入库的是「它在哪」。
+- **素材不入库 ≠ 素材不存在**：本地要跑回归、要看画面，
+  就用 `./aim assets build` 把素材生成到 `models/<slug>/assets/`——
+  **它留在本地、一件都不提交**。别因为「它不入库」就当它不存在，
+  也别因为「它不入库」就把它提交上去。
 - **只做框架，不做内容**：规范写成可替换的规则模板——
   **规则**是框架的，**例子**是这个人的。
 - **身份不在框架里**：人格、音色、形象、站名一律从 `model.json` 读，

@@ -46,6 +46,8 @@ COMMANDS: tuple[Command, ...] = (
             "把确认结论归一化成 model.json（校验通过才写）"),
     Command("font install", "scripts/install_font.py",
             "装内置字体子集（跨机版式一致靠它）"),
+    Command("assets build", "scripts/build_assets.py",
+            "按依赖顺序把这个人的素材在本地生成出来（素材不入库）"),
     Command("character generate", "scripts/character/generate_character.py",
             "从形象原型生成主形象与 6 姿态表（消耗生成额度）"),
     Command("character glasses", "scripts/character/add_glasses.py",

@@ -12,7 +12,7 @@
 
 | # | 命令 | 跑的是什么 | Expected |
 | --- | --- | --- | --- |
-| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库、**通用性** | **166 passed / 18 skipped** |
+| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库、**通用性** | **178 passed / 18 skipped** |
 | 2 | `python3 -m pytest tests/test_model.py -q` | 模型契约：形状校验、相对路径基准、`schema` 涨版、**不猜用哪个人**、底板配色 | 20 passed |
 | 3 | `python3 -m pytest tests/test_build_model.py -q` | 收拢确认结论：保留原值、不编身份、坏形状不写、**核心流程（草稿 → model）走通**、**仓里那份实例是工具产出的** | 11 passed |
 | 4 | `python3 -m pytest tests/test_fonts.py -q` | 字体解析：族名解析、缺字探针、hinting 关掉 | 7 passed |
@@ -30,6 +30,7 @@
 | 16 | `python3 -m pytest tests/test_person_swap.py -q` | **通用性**：换一个完全不同的人，整套流程必须跑得通 | 7 passed |
 | 17 | `python3 -m pytest tests/test_cli.py -q` | **入口**：每条脚本都要会答 `--help`；**每条入口脚本都得进命令表**；**`./aim` 得有可执行位**（git 记 100755） | 37 passed |
 | 18 | `python3 -m pytest tests/test_docs.py -q` | **文档**：仓内相对链接不许断；教程不许没了 | 9 passed |
+| 19 | `python3 -m pytest tests/test_assets_build.py -q` | **素材回路**：步序（音轨在渲片前）、链上不该有的那两步、链跟 CLI 同一套实现、**缺东西别花钱** | 9 passed |
 
 **每条命令都在仓根跑。**
 
