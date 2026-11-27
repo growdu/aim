@@ -43,6 +43,7 @@ skill 与 agent 在**独立分发包**里（**不在本仓**）——本仓是�
 | 模块 | 一级目录 | 它拥有 | 验收命令 |
 |------|----------|--------|----------|
 | **模型契约** | `models/` | `model.json`（这个人的唯一契约）、`brand_windows.json` | `python3 -m pytest tests/test_model.py -q` |
+| **建模** | `scripts/build_model.py` | 把确认结论归一化成 `model.json`（**校验通过才写**，不编身份值） | `python3 -m pytest tests/test_build_model.py -q` |
 | **可复用件** | `aimkit/` | `model.py`（读模型）、`look.py`（形象规格与配色）、`paths.py`（路径常量）、`fonts.py`（字体解析）、`cli.py`（命令表） | `python3 -m pytest tests/ -q` |
 | **命令行入口** | `aim` + `aimkit/cli.py` | **一个入口** `aim <阶段> <动作>`——命令表指向现有脚本，参数与退出码原样转交（**实现只有一份**） | `python3 -m pytest tests/test_cli.py -q` |
 | **形象** | `scripts/character/` | 生成主形象、戴眼镜、合成白底 | `python3 -m pytest tests/test_character.py -q` |

@@ -12,9 +12,9 @@
 
 | # | 命令 | 跑的是什么 | Expected |
 | --- | --- | --- | --- |
-| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库、**通用性** | **164 passed / 18 skipped** |
+| 1 | `python3 -m pytest tests/ -q` | **全套**：模型形状、字体、形象、人格、品牌片、素材入库、**通用性** | **165 passed / 18 skipped** |
 | 2 | `python3 -m pytest tests/test_model.py -q` | 模型契约：形状校验、相对路径基准、`schema` 涨版、**不猜用哪个人**、底板配色 | 20 passed |
-| 3 | `python3 -m pytest tests/test_build_model.py -q` | 收拢确认结论：保留原值、不编身份、坏形状不写 | 9 passed |
+| 3 | `python3 -m pytest tests/test_build_model.py -q` | 收拢确认结论：保留原值、不编身份、坏形状不写、**核心流程（草稿 → model）走通** | 10 passed |
 | 4 | `python3 -m pytest tests/test_fonts.py -q` | 字体解析：族名解析、缺字探针、hinting 关掉 | 7 passed |
 | 5 | `python3 -m pytest tests/test_voice.py -q` | 音色：替换表、多音字规则、参数取自模型 | 8 passed |
 | 6 | `python3 -m pytest tests/test_character.py -q` | 形象：眼镜规格 ↔ 规范 ↔ prompt、素材位置跟模型一致 | 10 passed |
